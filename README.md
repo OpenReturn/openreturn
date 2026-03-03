@@ -18,6 +18,8 @@ There is no shared standard for how returns work programmatically. Every e-comme
 
 **Modular integration adapters.** Open-source connectors for carriers and e-commerce platforms, using retailer-owned API keys. No intermediary touches the retailer's data or takes a margin on their shipments.
 
+**Reference return portal.** A self-hostable web application (built with Next.js) that implements the protocol and provides the full return and exchange flow for retailers and consumers. Serves as both a production-ready portal and a reference implementation for developers building their own interfaces.
+
 ### Supported carriers
 
 PostNL, DHL, UPS, DPD, FedEx, GLS, Budbee, Homerr
@@ -37,6 +39,7 @@ Mollie, Adyen, Stripe
 - **Protocol-first.** The specification is the primary deliverable. The portal is a reference implementation of the protocol.
 - **Agent-friendly.** Every flow is designed to be navigable by both human UIs and AI agents.
 - **Vendor-neutral.** No lock-in to any specific carrier, platform or payment provider.
+- **Self-hostable.** Retailers can run the reference portal on their own infrastructure, keeping full control over their return flow and data.
 
 ## Project status
 
@@ -46,18 +49,24 @@ OpenReturn is in the design and early development phase. The protocol specificat
 
 ```
 ┌─────────────────────────────────────────────────┐
-│                 Consumer / Agent                 │
-│            (browser, AI agent, MCP)              │
+│                 Consumer / Agent                │
+│            (browser, AI agent, MCP)             │
 └──────────────────────┬──────────────────────────┘
                        │
                        ▼
 ┌─────────────────────────────────────────────────┐
-│              OpenReturn Protocol                 │
-│         (REST + MCP + A2A transports)            │
-│                                                  │
+│          Reference Return Portal                │
+│            (Next.js, self-hostable)             │
+└──────────────────────┬──────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────┐
+│              OpenReturn Protocol                │
+│         (REST + MCP + A2A transports)           │
+│                                                 │
 │  ┌──────────┐  ┌──────────┐  ┌───────────────┐  │
-│  │  Return   │  │ Exchange │  │   Tracking    │  │
-│  │  Request  │  │   Flow   │  │    Events     │  │
+│  │  Return  │  │ Exchange │  │   Tracking    │  │
+│  │  Request │  │   Flow   │  │    Events     │  │
 │  └──────────┘  └──────────┘  └───────────────┘  │
 └──────┬──────────────┬───────────────┬───────────┘
        │              │               │
