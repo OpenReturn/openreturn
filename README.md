@@ -61,7 +61,7 @@ OpenReturn is in the design and early development phase. The protocol specificat
 │                                                             │
 │    ┌──────────┐    ┌──────────┐    ┌───────────────┐        │
 │    │  Return  │    │ Exchange │    │   Tracking    │        │
-│    │  Reques  │    │   Flow   │    │    Events     │        │
+│    │  Request │    │   Flow   │    │    Events     │        │
 │    └──────────┘    └──────────┘    └───────────────┘        │
 └──────┬──────────────────┬───────────────────┬───────────────┘
        │                  │                   │
