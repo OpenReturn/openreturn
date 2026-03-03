@@ -18,7 +18,7 @@ There is no shared standard for how returns work programmatically. Every e-comme
 
 **Modular integration adapters.** Open-source connectors for carriers and e-commerce platforms, using retailer-owned API keys. No intermediary touches the retailer's data or takes a margin on their shipments.
 
-**Reference return portal.** A self-hostable web application (built with Next.js) that implements the protocol and provides the full return and exchange flow for retailers and consumers. Serves as both a production-ready portal and a reference implementation for developers building their own interfaces.
+**Reference return portal.** A self-hostable web application (built with Next.js) that implements the protocol and provides the full return and exchange flow for retailers and consumers. Serves as both a production-ready portal and a reference implementation for developers (or agents) building their own interfaces.
 
 ### Supported carriers
 
