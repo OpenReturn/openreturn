@@ -12,6 +12,8 @@ Thank you for your interest in contributing to OpenReturn. This project is in it
 
 **Carrier and platform adapters.** If you have experience with a specific carrier API or e-commerce platform, adapter contributions are especially welcome. See the adapter interface documentation (coming soon) for the contract each adapter must implement.
 
+**Reference portal.** The return portal is built with Next.js. Contributions to the consumer-facing return flow, retailer dashboard, or self-hosting setup are welcome.
+
 **Documentation.** Improvements to docs, tutorials and examples are always appreciated.
 
 ## Development setup
