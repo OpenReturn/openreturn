@@ -48,42 +48,37 @@ OpenReturn is in the design and early development phase. The protocol specificat
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│                 Consumer / Agent                │
-│            (browser, AI agent, MCP)             │
-└──────────────────────┬──────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────┐
-│          Reference Return Portal                │
-│            (Next.js, self-hostable)             │
-└──────────────────────┬──────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────┐
-│              OpenReturn Protocol                │
-│         (REST + MCP + A2A transports)           │
-│                                                 │
-│  ┌──────────┐  ┌──────────┐  ┌───────────────┐  │
-│  │  Return  │  │ Exchange │  │   Tracking    │  │
-│  │  Request │  │   Flow   │  │    Events     │  │
-│  └──────────┘  └──────────┘  └───────────────┘  │
-└──────┬──────────────┬───────────────┬───────────┘
-       │              │               │
-       ▼              ▼               ▼
-┌────────────┐ ┌────────────┐ ┌─────────────────┐
-│  Carrier   │ │  Platform  │ │    Payment      │
-│  Adapters  │ │  Adapters  │ │    Adapters     │
-│            │ │            │ │                 │
-│ PostNL     │ │ Shopify    │ │ Mollie          │
-│ DHL        │ │ WooCommerce│ │ Adyen           │
-│ UPS        │ │ Magento    │ │ Stripe          │
-│ DPD        │ │ BigCommerce│ │                 │
-│ FedEx      │ │ Headless   │ │                 │
-│ GLS        │ │            │ │                 │
-│ Budbee     │ │            │ │                 │
-│ Homerr     │ │            │ │                 │
-└────────────┘ └────────────┘ └─────────────────┘
+┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
+│   Consumer via   │  │   AI Agent       │  │  Custom Client   │
+│ Reference Portal │  │  (MCP / A2A)     │  │    (REST)        │
+│    (Next.js)     │  │                  │  │                  │
+└────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘
+         │                     │                     │
+         ▼                     ▼                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    OpenReturn Protocol                      │
+│               (REST + MCP + A2A transports)                 │
+│                                                             │
+│    ┌──────────┐    ┌──────────┐    ┌───────────────┐        │
+│    │  Return  │    │ Exchange │    │   Tracking    │        │
+│    │  Reques  │    │   Flow   │    │    Events     │        │
+│    └──────────┘    └──────────┘    └───────────────┘        │
+└──────┬──────────────────┬───────────────────┬───────────────┘
+       │                  │                   │
+       ▼                  ▼                   ▼
+┌────────────┐     ┌────────────┐     ┌─────────────────┐
+│  Carrier   │     │  Platform  │     │    Payment      │
+│  Adapters  │     │  Adapters  │     │    Adapters     │
+│            │     │            │     │                 │
+│ PostNL     │     │ Shopify    │     │ Mollie          │
+│ DHL        │     │ WooCommerce│     │ Adyen           │
+│ UPS        │     │ Magento    │     │ Stripe          │
+│ DPD        │     │ BigCommerce│     │                 │
+│ FedEx      │     │ Headless   │     │                 │
+│ GLS        │     │            │     │                 │
+│ Budbee     │     │            │     │                 │
+│ Homerr     │     │            │     │                 │
+└────────────┘     └────────────┘     └─────────────────┘
 ```
 
 ## Relation to UCP
