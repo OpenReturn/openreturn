@@ -22,7 +22,7 @@ There is no shared standard for how returns work programmatically. Every e-comme
 
 ### Supported carriers
 
-PostNL, DHL, UPS, DPD, FedEx, GLS, Budbee, Homerr
+PostNL, DHL, UPS, DPD, GLS, Budbee, more to come.
 
 ### Supported e-commerce platforms
 
