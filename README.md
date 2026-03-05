@@ -58,26 +58,35 @@ OpenReturn is in the design and early development phase. The protocol specificat
           ┌───────────────────┼───────────────────┐
           │                   │                   │
           ▼                   ▼                   ▼
-  ┌───────────────┐  ┌────────────────┐  ┌───────────────┐
-  │   Reference   │  │   AI Agent     │  │    Custom     │
-  │    Portal     │  │    (MCP)       │  │    Client     │
-  │   (Next.js)   │  │                │  │    (REST)     │
-  └───────┬───────┘  └────────┬───────┘  └───────┬───────┘
-          │                   │                  │
-          └───────────────────┼──────────────────┘
+  ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
+  │   Reference   │   │   AI Agent    │   │    Custom     │
+  │    Portal     │   │               │   │    Client     │
+  │   (Next.js)   │   │               │   │               │
+  └───────┬───────┘   └───────┬───────┘   └───────┬───────┘
+          │                   │                   │
+          │           ┌───────┴───────┐           │
+          │           │  MCP Server   │           │
+          │           │  (wraps REST) │           │
+          │           └───────┬───────┘           │
+          │                   │                   │
+          └───────────────────┼───────────────────┘
                               │
                               ▼
   ┌───────────────────────────────────────────────────┐
-  │               OpenReturn Core                     │
-  │                                                   │
-  │   REST API + MCP Server                           │
-  │   Return State Machine                            │
-  │   Notification Events ──────────── Email (SMTP)   │
-  └───────────────┬───────────────────┬───────────────┘
-                  │                   │
-      ┌───────────┼───────────┐       │
-      │           │           │       │
-      ▼           ▼           ▼       ▼
+  │                     REST API                      │
+  └───────────────────────┬───────────────────────────┘
+                          │
+                          ▼
+  ┌────────────────────────────────────────────────────┐
+  │               OpenReturn Core                      │
+  │                                                    │
+  │   Return State Machine                             │
+  │   Notification Events ──────────── Email (SMTP)    │
+  └───────────────┬──────────────────┬─────────────────┘
+                  │                  │
+      ┌───────────┼───────────┐      │
+      │           │           │      │
+      ▼           ▼           ▼      ▼
   ┌────────┐ ┌─────────┐ ┌──────┐ ┌──────────────────┐
   │Carrier │ │Platform/│ │Pay-  │ │ Return Methods   │
   │Adapters│ │ERP      │ │ment  │ │ (extensible)     │
@@ -90,7 +99,9 @@ OpenReturn is in the design and early development phase. The protocol specificat
 
 The key architectural boundaries:
 
-- **Clients** connect via REST or MCP. External clients discover the endpoint via `/.well-known/openreturn` or the retailer's UCP profile.
+- **REST API** is the single entry point. All clients (portal, agents, custom integrations) go through it. There is no direct access to the core.
+- **MCP Server** wraps the REST API, translating MCP tool calls into REST requests. It is a client of the API, not a separate path into the core.
+- **Reference Portal** is also a REST API client. It is a Next.js application that can be self-hosted by retailers.
 - **Core** implements the protocol specification, manages the return state machine, and emits notification events.
 - **Adapters** are pluggable. Each implements a generic interface with retailer-owned API keys. See the supported [carriers](#supported-carriers), [platforms](#supported-e-commerce-platforms) and [payment providers](#supported-payment-providers-for-return-shipping-fees) below.
 - **Return methods** are extensible. Third-party services register via the same interface as built-in methods (return-to-warehouse, exchange).
