@@ -136,7 +136,7 @@ The protocol and adapter architecture are designed to grow beyond the initial sc
 
 **A2A Agent Card discovery.** Adding A2A support alongside the existing MCP server, so agent-to-agent commerce workflows can discover and interact with the return protocol. MCP and A2A are both governed by the Linux Foundation's Agentic AI Foundation.
 
-These are not part of the current funded scope but are designed to be achievable through the adapter interfaces and extensible return method architecture.
+These are designed to be achievable through the adapter interfaces and extensible return method architecture.
 
 ## About
 
