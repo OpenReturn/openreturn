@@ -132,9 +132,9 @@ export class OpenReturnApiClient {
       headers,
       body: options.body ? JSON.stringify(options.body) : undefined
     });
-    const payload = (await response.json()) as T;
+    const payload = await parseJsonResponse<T>(response);
     if (!response.ok) {
-      throw new Error(JSON.stringify(payload));
+      throw new Error(formatApiError(response.status, payload));
     }
     return payload;
   }
@@ -143,7 +143,8 @@ export class OpenReturnApiClient {
     if (this.accessToken) {
       return this.accessToken;
     }
-    if (!this.subjectToken && !process.env.OPENRETURN_MCP_USE_CLIENT_TOKEN) {
+    const useClientToken = process.env.OPENRETURN_MCP_USE_CLIENT_TOKEN === "true";
+    if (!this.subjectToken && !useClientToken) {
       return undefined;
     }
 
@@ -184,9 +185,36 @@ export class OpenReturnApiClient {
       headers,
       body: JSON.stringify(body)
     });
+    const payload = await parseJsonResponse<OAuthTokenResponse>(response);
     if (!response.ok) {
-      throw new Error(`OAuth request failed with ${response.status}`);
+      throw new Error(formatApiError(response.status, payload));
     }
-    return (await response.json()) as OAuthTokenResponse;
+    return payload;
   }
+}
+
+async function parseJsonResponse<T>(response: Response): Promise<T> {
+  const text = await response.text();
+  if (!text) {
+    return {} as T;
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`OpenReturn API returned non-JSON response with ${response.status}`);
+  }
+}
+
+function formatApiError(status: number, payload: unknown): string {
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    "error" in payload &&
+    typeof payload.error === "object" &&
+    payload.error !== null &&
+    "message" in payload.error
+  ) {
+    return `OpenReturn API request failed with ${status}: ${String(payload.error.message)}`;
+  }
+  return `OpenReturn API request failed with ${status}: ${JSON.stringify(payload)}`;
 }

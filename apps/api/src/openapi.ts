@@ -154,7 +154,8 @@ export const openApiDocument = {
               properties: { order: { $ref: "#/components/schemas/Order" } }
             })
           },
-          "404": errorResponse
+          "404": errorResponse,
+          "503": errorResponse
         }
       }
     },
@@ -268,6 +269,7 @@ export const openApiDocument = {
             })
           },
           "400": errorResponse,
+          "404": errorResponse,
           "409": errorResponse
         }
       }
@@ -291,6 +293,7 @@ export const openApiDocument = {
             })
           },
           "400": errorResponse,
+          "404": errorResponse,
           "409": errorResponse
         }
       }
@@ -313,10 +316,28 @@ export const openApiDocument = {
         }
       }
     },
-    "/labels/{carrier}/{trackingNumber}": {
+    "/labels/{carrier}/{serviceLevel}/{trackingNumber}": {
       get: {
         tags: ["Labels"],
         summary: "Download a mock label PDF",
+        security: [],
+        parameters: [
+          { name: "carrier", in: "path", required: true, schema: { type: "string" } },
+          { name: "serviceLevel", in: "path", required: true, schema: { type: "string" } },
+          { name: "trackingNumber", in: "path", required: true, schema: { type: "string" } }
+        ],
+        responses: {
+          "200": {
+            description: "PDF label",
+            content: { "application/pdf": { schema: { type: "string", format: "binary" } } }
+          }
+        }
+      }
+    },
+    "/labels/{carrier}/{trackingNumber}": {
+      get: {
+        tags: ["Labels"],
+        summary: "Download a mock label PDF using the legacy label path",
         security: [],
         parameters: [
           { name: "carrier", in: "path", required: true, schema: { type: "string" } },

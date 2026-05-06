@@ -347,13 +347,19 @@ export function createApp(dependencies: AppDependencies = {}) {
     })
   );
 
+  app.get("/labels/:carrier/:serviceLevel/:trackingNumber", (request, response) => {
+    sendMockLabel(response, request.params.carrier, request.params.trackingNumber);
+  });
+
   app.get("/labels/:carrier/:trackingNumber", (request, response) => {
+    sendMockLabel(response, request.params.carrier, request.params.trackingNumber);
+  });
+
+  function sendMockLabel(response: Response, carrier: string, trackingNumber: string): void {
     response
       .type("application/pdf")
-      .send(
-        `%PDF-1.4\n% OpenReturn mock label ${request.params.carrier}/${request.params.trackingNumber}\n`
-      );
-  });
+      .send(`%PDF-1.4\n% OpenReturn mock label ${carrier}/${trackingNumber}\n`);
+  }
 
   app.use((error: unknown, _request: Request, response: Response, _next: NextFunction) => {
     if (error instanceof OpenReturnError) {

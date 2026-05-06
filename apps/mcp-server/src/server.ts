@@ -64,12 +64,31 @@ export function startHttpMcpServer(
     }
 
     let body = "";
+    let bodyTooLarge = false;
     request.setEncoding("utf8");
     request.on("data", (chunk) => {
       body += chunk;
+      if (body.length > 1_000_000) {
+        bodyTooLarge = true;
+        request.destroy();
+      }
+    });
+    request.on("error", () => {
+      if (!response.headersSent) {
+        response.writeHead(bodyTooLarge ? 413 : 400, { "content-type": "application/json" });
+        response.end(JSON.stringify({ error: bodyTooLarge ? "payload_too_large" : "bad_request" }));
+      }
     });
     request.on("end", () => {
       void (async () => {
+        if (response.headersSent) {
+          return;
+        }
+        if (bodyTooLarge) {
+          response.writeHead(413, { "content-type": "application/json" });
+          response.end(JSON.stringify({ error: "payload_too_large" }));
+          return;
+        }
         let rpcRequest: JsonRpcRequest;
         try {
           rpcRequest = JSON.parse(body) as JsonRpcRequest;

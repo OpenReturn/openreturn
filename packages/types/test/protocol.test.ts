@@ -98,4 +98,24 @@ describe("OpenReturn protocol constants", () => {
     expect(() => assertUpdateReturnRequest({})).toThrow(ProtocolValidationError);
     expect(() => assertUpdateReturnRequest({ status: "approved" })).not.toThrow();
   });
+
+  it("validates structured resolution update payloads", () => {
+    expect(() =>
+      assertUpdateReturnRequest({
+        status: "refunded",
+        refund: {
+          amount: { amount: 1000, currency: "EUR" },
+          provider: "stripe",
+          transactionId: "re_123",
+          processedAt: new Date().toISOString()
+        }
+      })
+    ).not.toThrow();
+    expect(() =>
+      assertUpdateReturnRequest({
+        status: "completed",
+        storeCredit: { amount: { amount: 1000, currency: "eur" }, issuedAt: "now" }
+      })
+    ).toThrow(ProtocolValidationError);
+  });
 });

@@ -3,6 +3,7 @@ import { createMockCarrierAdapters } from "@openreturn/adapters";
 import { createDefaultReturnMethodRegistry } from "@openreturn/return-methods";
 import {
   InMemoryReturnRepository,
+  type NotificationDispatcher,
   NoopNotificationDispatcher,
   ReturnService,
   canTransition
@@ -120,6 +121,75 @@ describe("return service", () => {
     await expect(service.updateReturn(record.id, {})).rejects.toThrow(
       "At least one update field is required"
     );
+  });
+
+  it("requires resolution results before non-rejected returns complete", async () => {
+    const { service } = createService();
+    const record = await service.initiateReturn({
+      orderId: "ORDER-CREDIT",
+      customer: { email: "customer@example.com" },
+      requestedResolution: "store_credit",
+      items: [
+        {
+          orderItemId: "line_1",
+          sku: "SKU",
+          name: "Item",
+          quantity: 1,
+          reason: { code: "other" }
+        }
+      ]
+    });
+
+    await service.updateReturn(record.id, { status: "approved" });
+    await expect(service.updateReturn(record.id, { status: "completed" })).rejects.toThrow(
+      "Completed store credit returns require a store credit result"
+    );
+    const completed = await service.updateReturn(record.id, {
+      status: "completed",
+      storeCredit: {
+        amount: { amount: 1000, currency: "EUR" },
+        code: "CREDIT-1",
+        issuedAt: new Date().toISOString()
+      }
+    });
+
+    expect(completed.status).toBe("completed");
+    expect(completed.storeCredit?.code).toBe("CREDIT-1");
+  });
+
+  it("does not fail return operations when notifications fail", async () => {
+    class FailingNotifications implements NotificationDispatcher {
+      public async dispatch(): Promise<void> {
+        throw new Error("SMTP unavailable");
+      }
+    }
+
+    const service = new ReturnService({
+      repository: new InMemoryReturnRepository(),
+      carriers: createMockCarrierAdapters({ apiKey: "test" }),
+      returnMethods: createDefaultReturnMethodRegistry(),
+      notifications: new FailingNotifications()
+    });
+    const record = await service.initiateReturn({
+      orderId: "ORDER-NOTIFY",
+      customer: { email: "customer@example.com" },
+      requestedResolution: "refund",
+      items: [
+        {
+          orderItemId: "line_1",
+          sku: "SKU",
+          name: "Item",
+          quantity: 1,
+          reason: { code: "size" }
+        }
+      ]
+    });
+
+    expect(record.events.at(-1)).toMatchObject({
+      type: "notification.sent",
+      message: "Notification failed: return_confirmation",
+      data: expect.objectContaining({ delivered: false })
+    });
   });
 
   it("records non-tracking webhooks without changing return state", async () => {

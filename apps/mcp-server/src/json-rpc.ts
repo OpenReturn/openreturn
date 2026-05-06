@@ -58,11 +58,38 @@ export class StdioJsonRpcTransport {
       }
       const payload = this.buffer.subarray(start, end).toString("utf8");
       this.buffer = this.buffer.subarray(end);
-      const request = JSON.parse(payload) as JsonRpcRequest;
-      const response = await this.handler(request);
+      let request: JsonRpcRequest;
+      try {
+        request = JSON.parse(payload) as JsonRpcRequest;
+      } catch {
+        process.stdout.write(
+          encodeMessage({
+            jsonrpc: "2.0",
+            id: null,
+            error: { code: -32700, message: "Parse error" }
+          })
+        );
+        continue;
+      }
+      const response = await this.safeHandle(request);
       if (response) {
         process.stdout.write(encodeMessage(response));
       }
+    }
+  }
+
+  private async safeHandle(request: JsonRpcRequest): Promise<JsonRpcResponse | undefined> {
+    try {
+      return await this.handler(request);
+    } catch (error) {
+      return {
+        jsonrpc: "2.0",
+        id: request.id,
+        error: {
+          code: -32000,
+          message: error instanceof Error ? error.message : "Internal MCP error"
+        }
+      };
     }
   }
 }

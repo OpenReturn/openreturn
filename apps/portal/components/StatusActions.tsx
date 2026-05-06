@@ -2,7 +2,15 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, ClipboardCheck, CreditCard, PackageCheck, Truck } from "lucide-react";
+import {
+  BadgePercent,
+  CheckCircle2,
+  ClipboardCheck,
+  CreditCard,
+  Gift,
+  PackageCheck,
+  Truck
+} from "lucide-react";
 import type { OpenReturnRecord, ReturnState, TrackingStatus } from "@openreturn/types";
 
 const trackingOptions: { value: TrackingStatus; label: string }[] = [
@@ -140,6 +148,26 @@ function buildLifecyclePayload(record: OpenReturnRecord, status: ReturnState) {
       }
     };
   }
+  if (status === "completed" && record.requestedResolution === "store_credit") {
+    return {
+      status,
+      storeCredit: {
+        amount: { amount: 100, currency: "EUR" },
+        code: `CREDIT-${record.id.slice(0, 8).toUpperCase()}`,
+        issuedAt: new Date().toISOString()
+      }
+    };
+  }
+  if (status === "completed" && record.requestedResolution === "coupon_code") {
+    return {
+      status,
+      couponCode: {
+        code: `RETURN-${record.id.slice(0, 8).toUpperCase()}`,
+        percentage: 10,
+        issuedAt: new Date().toISOString()
+      }
+    };
+  }
   return { status };
 }
 
@@ -150,9 +178,16 @@ function buildNextActions(record: OpenReturnRecord) {
     case "inspection":
       return [{ status: "approved" as const, label: "Approve return", Icon: CheckCircle2 }];
     case "approved":
-      return record.requestedResolution === "exchange"
-        ? [{ status: "exchanged" as const, label: "Complete exchange", Icon: PackageCheck }]
-        : [{ status: "refunded" as const, label: "Process refund", Icon: CreditCard }];
+      switch (record.requestedResolution) {
+        case "exchange":
+          return [{ status: "exchanged" as const, label: "Complete exchange", Icon: PackageCheck }];
+        case "store_credit":
+          return [{ status: "completed" as const, label: "Issue store credit", Icon: Gift }];
+        case "coupon_code":
+          return [{ status: "completed" as const, label: "Issue coupon", Icon: BadgePercent }];
+        default:
+          return [{ status: "refunded" as const, label: "Process refund", Icon: CreditCard }];
+      }
     case "refunded":
     case "exchanged":
     case "rejected":

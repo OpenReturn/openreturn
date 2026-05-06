@@ -23,6 +23,14 @@ paths:
       responses:
         "200":
           description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
   /openapi.json:
     get:
       tags: [Discovery]
@@ -31,6 +39,11 @@ paths:
       responses:
         "200":
           description: OpenAPI document
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
   /.well-known/openreturn:
     get:
       tags: [Discovery]
@@ -51,6 +64,11 @@ paths:
       responses:
         "200":
           description: OAuth authorization server metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
   /oauth/token:
     post:
       tags: [OAuth]
@@ -87,6 +105,10 @@ paths:
       responses:
         "200":
           description: Delegated token response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthTokenResponse"
         "400":
           $ref: "#/components/responses/Error"
         "401":
@@ -115,6 +137,8 @@ paths:
                   order:
                     $ref: "#/components/schemas/Order"
         "404":
+          $ref: "#/components/responses/Error"
+        "503":
           $ref: "#/components/responses/Error"
   /returns:
     get:
@@ -162,6 +186,10 @@ paths:
       responses:
         "201":
           description: Return created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReturnResponse"
         "400":
           $ref: "#/components/responses/Error"
         "409":
@@ -175,6 +203,10 @@ paths:
       responses:
         "200":
           description: Return
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReturnResponse"
         "404":
           $ref: "#/components/responses/Error"
     put:
@@ -191,6 +223,10 @@ paths:
       responses:
         "200":
           description: Updated return
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReturnResponse"
         "400":
           $ref: "#/components/responses/Error"
         "404":
@@ -212,7 +248,13 @@ paths:
       responses:
         "200":
           description: Updated return
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReturnResponse"
         "400":
+          $ref: "#/components/responses/Error"
+        "404":
           $ref: "#/components/responses/Error"
         "409":
           $ref: "#/components/responses/Error"
@@ -231,7 +273,13 @@ paths:
       responses:
         "200":
           description: Updated return with label
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReturnResponse"
         "400":
+          $ref: "#/components/responses/Error"
+        "404":
           $ref: "#/components/responses/Error"
         "409":
           $ref: "#/components/responses/Error"
@@ -244,12 +292,49 @@ paths:
       responses:
         "200":
           description: Shipping label
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [label]
+                properties:
+                  label:
+                    $ref: "#/components/schemas/ShippingLabel"
         "404":
           $ref: "#/components/responses/Error"
-  /labels/{carrier}/{trackingNumber}:
+  /labels/{carrier}/{serviceLevel}/{trackingNumber}:
     get:
       tags: [Labels]
       summary: Download a mock label PDF
+      security: []
+      parameters:
+        - name: carrier
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: serviceLevel
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: trackingNumber
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: PDF label
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+  /labels/{carrier}/{trackingNumber}:
+    get:
+      tags: [Labels]
+      summary: Download a mock label PDF using the legacy label path
       security: []
       parameters:
         - name: carrier
@@ -265,6 +350,11 @@ paths:
       responses:
         "200":
           description: PDF label
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
   /returns/{id}/track:
     post:
       tags: [Returns]
@@ -280,6 +370,10 @@ paths:
       responses:
         "200":
           description: Updated return
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReturnResponse"
         "400":
           $ref: "#/components/responses/Error"
         "404":
@@ -295,6 +389,16 @@ paths:
       responses:
         "200":
           description: Event history
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [events]
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ReturnEvent"
         "404":
           $ref: "#/components/responses/Error"
   /webhooks:
@@ -310,6 +414,18 @@ paths:
       responses:
         "202":
           description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accepted]
+                properties:
+                  accepted:
+                    type: boolean
+                  return:
+                    oneOf:
+                      - $ref: "#/components/schemas/OpenReturnRecord"
+                      - type: "null"
         "400":
           $ref: "#/components/responses/Error"
 components:
@@ -342,6 +458,12 @@ components:
     ReasonCode:
       type: string
       enum: [defect, size, not_as_described, wrong_item, arrived_late, damaged_in_transit, duplicate_order, changed_mind, unwanted, other]
+    CarrierCode:
+      type: string
+      enum: [postnl, dhl, ups, dpd, budbee]
+    TrackingStatus:
+      type: string
+      enum: [label_created, accepted, in_transit, out_for_delivery, delivered, exception]
     Money:
       type: object
       required: [amount, currency]
@@ -438,6 +560,18 @@ components:
         attributes: { type: object }
         priceDifference:
           $ref: "#/components/schemas/Money"
+    ExchangeSelection:
+      type: object
+      required: [requestedItems, selectedAt, status]
+      properties:
+        requestedItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExchangeItem"
+        selectedAt: { type: string, format: date-time }
+        status:
+          type: string
+          enum: [pending, reserved, fulfilled, cancelled]
     InitiateReturnRequest:
       type: object
       required: [orderId, customer, items, requestedResolution]
@@ -461,11 +595,17 @@ components:
       properties:
         status:
           $ref: "#/components/schemas/ReturnState"
-        inspection: { type: object }
-        refund: { type: object }
-        storeCredit: { type: object }
-        couponCode: { type: object }
-        metadata: { type: object }
+        inspection:
+          $ref: "#/components/schemas/InspectionResult"
+        refund:
+          $ref: "#/components/schemas/RefundResult"
+        storeCredit:
+          $ref: "#/components/schemas/StoreCreditResult"
+        couponCode:
+          $ref: "#/components/schemas/CouponCodeResult"
+        metadata:
+          type: object
+          additionalProperties: true
     SelectExchangeRequest:
       type: object
       required: [requestedItems]
@@ -480,11 +620,15 @@ components:
       required: [carrier]
       properties:
         carrier:
-          type: string
-          enum: [postnl, dhl, ups, dpd, budbee]
+          $ref: "#/components/schemas/CarrierCode"
         serviceLevel: { type: string }
         dropoffPointId: { type: string }
-        pickupWindow: { type: object }
+        pickupWindow:
+          type: object
+          required: [startsAt, endsAt]
+          properties:
+            startsAt: { type: string, format: date-time }
+            endsAt: { type: string, format: date-time }
         shipFrom:
           $ref: "#/components/schemas/Address"
         shipTo:
@@ -510,11 +654,51 @@ components:
         carrier: { type: string }
         trackingNumber: { type: string }
         status:
-          type: string
-          enum: [label_created, accepted, in_transit, out_for_delivery, delivered, exception]
+          $ref: "#/components/schemas/TrackingStatus"
         occurredAt: { type: string, format: date-time }
         location: { type: string }
         description: { type: string }
+    InspectionResult:
+      type: object
+      required: [inspectedAt, accepted]
+      properties:
+        inspectedAt: { type: string, format: date-time }
+        inspectorId: { type: string }
+        accepted: { type: boolean }
+        notes: { type: string }
+        itemConditions:
+          type: object
+          additionalProperties:
+            type: string
+            enum: [unopened, new, used, defective, damaged]
+    RefundResult:
+      type: object
+      required: [amount, provider, transactionId, processedAt]
+      properties:
+        amount:
+          $ref: "#/components/schemas/Money"
+        provider: { type: string }
+        transactionId: { type: string }
+        processedAt: { type: string, format: date-time }
+    StoreCreditResult:
+      type: object
+      required: [amount, code, issuedAt]
+      properties:
+        amount:
+          $ref: "#/components/schemas/Money"
+        code: { type: string }
+        expiresAt: { type: string, format: date-time }
+        issuedAt: { type: string, format: date-time }
+    CouponCodeResult:
+      type: object
+      required: [code, issuedAt]
+      properties:
+        code: { type: string }
+        amount:
+          $ref: "#/components/schemas/Money"
+        percentage: { type: number }
+        expiresAt: { type: string, format: date-time }
+        issuedAt: { type: string, format: date-time }
     ReturnEvent:
       type: object
       required: [id, returnId, type, state, message, createdAt]
@@ -526,7 +710,9 @@ components:
           $ref: "#/components/schemas/ReturnState"
         message: { type: string }
         actor: { type: string }
-        data: { type: object }
+        data:
+          type: object
+          additionalProperties: true
         createdAt: { type: string, format: date-time }
     OpenReturnRecord:
       type: object
@@ -550,8 +736,10 @@ components:
           items:
             $ref: "#/components/schemas/ReturnItem"
         returnMethod: { type: string }
-        exchange: { type: object }
-        carrier: { type: object }
+        exchange:
+          $ref: "#/components/schemas/ExchangeSelection"
+        carrier:
+          $ref: "#/components/schemas/SelectCarrierRequest"
         label:
           $ref: "#/components/schemas/ShippingLabel"
         tracking:
@@ -562,7 +750,17 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ReturnEvent"
-        metadata: { type: object }
+        inspection:
+          $ref: "#/components/schemas/InspectionResult"
+        refund:
+          $ref: "#/components/schemas/RefundResult"
+        storeCredit:
+          $ref: "#/components/schemas/StoreCreditResult"
+        couponCode:
+          $ref: "#/components/schemas/CouponCodeResult"
+        metadata:
+          type: object
+          additionalProperties: true
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         completedAt: { type: string, format: date-time }
@@ -572,8 +770,7 @@ components:
       properties:
         trackingNumber: { type: string }
         status:
-          type: string
-          enum: [label_created, accepted, in_transit, out_for_delivery, delivered, exception]
+          $ref: "#/components/schemas/TrackingStatus"
         occurredAt: { type: string, format: date-time }
         location: { type: string }
         description: { type: string }
@@ -586,7 +783,9 @@ components:
         type: { type: string }
         returnId: { type: string }
         trackingNumber: { type: string }
-        data: { type: object }
+        data:
+          type: object
+          additionalProperties: true
         occurredAt: { type: string, format: date-time }
     TokenDelegationRequest:
       type: object
@@ -615,6 +814,12 @@ components:
         mcp: { type: object }
         oauth: { type: object }
         capabilities: { type: object }
+    ReturnResponse:
+      type: object
+      required: [return]
+      properties:
+        return:
+          $ref: "#/components/schemas/OpenReturnRecord"
     Error:
       type: object
       required: [error]

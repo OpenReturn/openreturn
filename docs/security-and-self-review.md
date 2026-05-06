@@ -21,6 +21,9 @@ This reference implementation is designed to be self-hosted by a retailer. The R
 - Docker and CI initially expected a lockfile that could not be generated in the restricted build environment. They now use `pnpm install --no-frozen-lockfile`; projects should commit a generated `pnpm-lock.yaml` once dependency resolution is available.
 - MCP tools initially cast arguments directly into API requests. They now validate tool inputs and expose lookup, list, update, event, and webhook operations.
 - Mock adapters initially returned minimal static data. They now validate inputs, simulate carrier service levels, tracking timelines, cancellation, platform authorizations, and Stripe idempotency.
+- Generated label URLs initially included a service-level path segment that the API did not serve. The API now serves the canonical service-level label path and retains the legacy path.
+- Resolution completion initially allowed refund, store credit, and coupon code returns to complete without the corresponding result payload. The service and protocol validators now enforce structured resolution data.
+- SMTP dispatch failures initially propagated through return operations. Notification failures now preserve the return operation and append an auditable failed-delivery event.
 
 ## Residual work before production use
 

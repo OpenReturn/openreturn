@@ -501,10 +501,18 @@ export function assertUpdateReturnRequest(value: unknown): asserts value is Upda
   if ("status" in value) {
     validateEnum(value.status, "$.status", "return state", isReturnState, issues);
   }
-  optionalRecord(value, "inspection", "$.inspection", issues);
-  optionalRecord(value, "refund", "$.refund", issues);
-  optionalRecord(value, "storeCredit", "$.storeCredit", issues);
-  optionalRecord(value, "couponCode", "$.couponCode", issues);
+  if ("inspection" in value && value.inspection !== undefined) {
+    validateInspectionResult(value.inspection, "$.inspection", issues);
+  }
+  if ("refund" in value && value.refund !== undefined) {
+    validateRefundResult(value.refund, "$.refund", issues);
+  }
+  if ("storeCredit" in value && value.storeCredit !== undefined) {
+    validateStoreCreditResult(value.storeCredit, "$.storeCredit", issues);
+  }
+  if ("couponCode" in value && value.couponCode !== undefined) {
+    validateCouponCodeResult(value.couponCode, "$.couponCode", issues);
+  }
   optionalRecord(value, "metadata", "$.metadata", issues);
   throwIfIssues("Invalid update return request", issues);
 }
@@ -761,7 +769,109 @@ function validateExchangeItem(
     issues.push({ path: `${path}.quantity`, message: "Expected integer greater than zero" });
   }
   optionalRecord(value, "attributes", `${path}.attributes`, issues);
-  optionalRecord(value, "priceDifference", `${path}.priceDifference`, issues);
+  if ("priceDifference" in value && value.priceDifference !== undefined) {
+    validateMoney(value.priceDifference, `${path}.priceDifference`, issues);
+  }
+}
+
+function validateInspectionResult(
+  value: unknown,
+  path: string,
+  issues: ProtocolValidationIssue[]
+): void {
+  if (!isRecord(value)) {
+    issues.push({ path, message: "Expected object" });
+    return;
+  }
+  requireNonEmptyString(value, "inspectedAt", `${path}.inspectedAt`, issues);
+  optionalString(value, "inspectorId", `${path}.inspectorId`, issues);
+  if (typeof value.accepted !== "boolean") {
+    issues.push({ path: `${path}.accepted`, message: "Expected boolean" });
+  }
+  optionalString(value, "notes", `${path}.notes`, issues);
+  if ("itemConditions" in value && value.itemConditions !== undefined) {
+    if (!isRecord(value.itemConditions)) {
+      issues.push({ path: `${path}.itemConditions`, message: "Expected object" });
+      return;
+    }
+    for (const [key, condition] of Object.entries(value.itemConditions)) {
+      validateEnum(
+        condition,
+        `${path}.itemConditions.${key}`,
+        "return item condition",
+        isReturnItemCondition,
+        issues
+      );
+    }
+  }
+}
+
+function validateRefundResult(
+  value: unknown,
+  path: string,
+  issues: ProtocolValidationIssue[]
+): void {
+  if (!isRecord(value)) {
+    issues.push({ path, message: "Expected object" });
+    return;
+  }
+  validateMoney(value.amount, `${path}.amount`, issues);
+  requireNonEmptyString(value, "provider", `${path}.provider`, issues);
+  requireNonEmptyString(value, "transactionId", `${path}.transactionId`, issues);
+  requireNonEmptyString(value, "processedAt", `${path}.processedAt`, issues);
+}
+
+function validateStoreCreditResult(
+  value: unknown,
+  path: string,
+  issues: ProtocolValidationIssue[]
+): void {
+  if (!isRecord(value)) {
+    issues.push({ path, message: "Expected object" });
+    return;
+  }
+  validateMoney(value.amount, `${path}.amount`, issues);
+  requireNonEmptyString(value, "code", `${path}.code`, issues);
+  optionalString(value, "expiresAt", `${path}.expiresAt`, issues);
+  requireNonEmptyString(value, "issuedAt", `${path}.issuedAt`, issues);
+}
+
+function validateCouponCodeResult(
+  value: unknown,
+  path: string,
+  issues: ProtocolValidationIssue[]
+): void {
+  if (!isRecord(value)) {
+    issues.push({ path, message: "Expected object" });
+    return;
+  }
+  requireNonEmptyString(value, "code", `${path}.code`, issues);
+  if ("amount" in value && value.amount !== undefined) {
+    validateMoney(value.amount, `${path}.amount`, issues);
+  }
+  if ("percentage" in value && value.percentage !== undefined && typeof value.percentage !== "number") {
+    issues.push({ path: `${path}.percentage`, message: "Expected number" });
+  }
+  optionalString(value, "expiresAt", `${path}.expiresAt`, issues);
+  requireNonEmptyString(value, "issuedAt", `${path}.issuedAt`, issues);
+}
+
+function validateMoney(
+  value: unknown,
+  path: string,
+  issues: ProtocolValidationIssue[]
+): void {
+  if (!isRecord(value)) {
+    issues.push({ path, message: "Expected object" });
+    return;
+  }
+  if (!Number.isInteger(value.amount) || Number(value.amount) < 0) {
+    issues.push({ path: `${path}.amount`, message: "Expected non-negative integer" });
+  }
+  const currency = value.currency;
+  if (typeof currency !== "string" || !/^[A-Z]{3}$/.test(currency)) {
+    issues.push({ path: `${path}.currency`, message: "Expected 3-letter uppercase currency code" });
+  }
 }
 
 function throwIfIssues(message: string, issues: ProtocolValidationIssue[]): void {

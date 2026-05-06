@@ -401,6 +401,33 @@ export class ReturnService {
     if (request.status === "exchanged" && record.requestedResolution !== "exchange") {
       throw validationError("Only exchange returns can move to exchanged");
     }
+    if (request.status === "completed" && record.status !== "rejected") {
+      if (
+        record.requestedResolution === "refund" &&
+        record.status !== "refunded" &&
+        !request.refund &&
+        !record.refund
+      ) {
+        throw validationError("Completed refund returns require a refund result");
+      }
+      if (record.requestedResolution === "exchange" && record.status !== "exchanged") {
+        throw validationError("Completed exchange returns must move through exchanged first");
+      }
+      if (
+        record.requestedResolution === "store_credit" &&
+        !request.storeCredit &&
+        !record.storeCredit
+      ) {
+        throw validationError("Completed store credit returns require a store credit result");
+      }
+      if (
+        record.requestedResolution === "coupon_code" &&
+        !request.couponCode &&
+        !record.couponCode
+      ) {
+        throw validationError("Completed coupon code returns require a coupon code result");
+      }
+    }
   }
 
   private defaultMethodForResolution(resolution: string): string {
@@ -433,11 +460,23 @@ export class ReturnService {
     type: Parameters<typeof buildNotificationMessage>[0],
     record: OpenReturnRecord
   ): Promise<OpenReturnRecord> {
-    await this.notifications.dispatch(buildNotificationMessage(type, record));
+    try {
+      await this.notifications.dispatch(buildNotificationMessage(type, record));
+    } catch (error) {
+      return this.repository.appendEvent(
+        record.id,
+        this.createEvent(record, "notification.sent", `Notification failed: ${type}`, "system", {
+          notificationType: type,
+          delivered: false,
+          error: error instanceof Error ? error.message : "Unknown notification error"
+        })
+      );
+    }
     return this.repository.appendEvent(
       record.id,
       this.createEvent(record, "notification.sent", `Notification sent: ${type}`, "system", {
-        notificationType: type
+        notificationType: type,
+        delivered: true
       })
     );
   }
