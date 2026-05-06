@@ -25,6 +25,7 @@ const json = (schema: Record<string, unknown>) => ({
   }
 });
 
+/** OpenAPI 3.1 document served by the reference REST API. */
 export const openApiDocument = {
   openapi: "3.1.0",
   info: {
@@ -639,7 +640,7 @@ export const openApiDocument = {
         properties: {
           code: { type: "string" },
           amount: { $ref: "#/components/schemas/Money" },
-          percentage: { type: "number" },
+          percentage: { type: "number", exclusiveMinimum: 0, maximum: 100 },
           expiresAt: { type: "string", format: "date-time" },
           issuedAt: { type: "string", format: "date-time" }
         }

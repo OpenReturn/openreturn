@@ -1,3 +1,4 @@
+/** Canonical lifecycle states for an OpenReturn record. */
 export const RETURN_STATES = [
   "initiated",
   "label_generated",
@@ -14,6 +15,7 @@ export const RETURN_STATES = [
 
 export type ReturnState = (typeof RETURN_STATES)[number];
 
+/** Structured reason codes accepted when initiating a return. */
 export const RETURN_REASON_CODES = [
   "defect",
   "size",
@@ -29,26 +31,32 @@ export const RETURN_REASON_CODES = [
 
 export type ReturnReasonCode = (typeof RETURN_REASON_CODES)[number];
 
+/** Resolution outcomes supported by the protocol. */
 export const RESOLUTION_TYPES = ["refund", "exchange", "store_credit", "coupon_code"] as const;
 
 export type ResolutionType = (typeof RESOLUTION_TYPES)[number];
 
+/** Built-in carrier codes included by the reference implementation. */
 export const CARRIER_CODES = ["postnl", "dhl", "ups", "dpd", "budbee"] as const;
 
 export type CarrierCode = (typeof CARRIER_CODES)[number];
 
+/** Built-in commerce platform codes included by the reference implementation. */
 export const PLATFORM_CODES = ["shopify", "woocommerce", "magento", "bigcommerce"] as const;
 
 export type PlatformCode = (typeof PLATFORM_CODES)[number];
 
+/** Built-in ERP/headless commerce codes included by the reference implementation. */
 export const ERP_CODES = ["exact", "sap", "dynamics", "headless"] as const;
 
 export type ErpCode = (typeof ERP_CODES)[number];
 
+/** Built-in payment provider codes included by the reference implementation. */
 export const PAYMENT_PROVIDER_CODES = ["stripe"] as const;
 
 export type PaymentProviderCode = (typeof PAYMENT_PROVIDER_CODES)[number];
 
+/** Carrier tracking statuses that map into return lifecycle states. */
 export const TRACKING_STATUSES = [
   "label_created",
   "accepted",
@@ -60,18 +68,22 @@ export const TRACKING_STATUSES = [
 
 export type TrackingStatus = (typeof TRACKING_STATUSES)[number];
 
+/** Item conditions that can be captured during inspection. */
 export const RETURN_ITEM_CONDITIONS = ["unopened", "new", "used", "defective", "damaged"] as const;
 
 export type ReturnItemCondition = (typeof RETURN_ITEM_CONDITIONS)[number];
 
+/** Label formats supported by the protocol. */
 export const LABEL_FORMATS = ["pdf", "png", "zpl"] as const;
 
 export type LabelFormat = (typeof LABEL_FORMATS)[number];
 
+/** Return method identifiers reserved by the protocol. */
 export const RETURN_METHOD_TYPES = ["return-to-warehouse", "exchange", "third_party"] as const;
 
 export type ReturnMethodType = (typeof RETURN_METHOD_TYPES)[number];
 
+/** Transactional notification types emitted by the core service. */
 export const NOTIFICATION_TYPES = [
   "return_confirmation",
   "label_ready",
@@ -82,6 +94,7 @@ export const NOTIFICATION_TYPES = [
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
+/** Event type names recorded in return history. */
 export const EVENT_TYPES = [
   "return.initiated",
   "return.updated",
@@ -391,6 +404,7 @@ export interface ProtocolValidationIssue {
   message: string;
 }
 
+/** Structured validation error thrown by protocol boundary validators. */
 export class ProtocolValidationError extends Error {
   public readonly code = "validation_error";
 
@@ -403,34 +417,42 @@ export class ProtocolValidationError extends Error {
   }
 }
 
+/** Type guard for canonical return states. */
 export function isReturnState(value: unknown): value is ReturnState {
   return isOneOf(RETURN_STATES, value);
 }
 
+/** Type guard for canonical return reason codes. */
 export function isReturnReasonCode(value: unknown): value is ReturnReasonCode {
   return isOneOf(RETURN_REASON_CODES, value);
 }
 
+/** Type guard for canonical resolution types. */
 export function isResolutionType(value: unknown): value is ResolutionType {
   return isOneOf(RESOLUTION_TYPES, value);
 }
 
+/** Type guard for built-in carrier codes. */
 export function isCarrierCode(value: unknown): value is CarrierCode {
   return isOneOf(CARRIER_CODES, value);
 }
 
+/** Type guard for canonical carrier tracking statuses. */
 export function isTrackingStatus(value: unknown): value is TrackingStatus {
   return isOneOf(TRACKING_STATUSES, value);
 }
 
+/** Type guard for item inspection conditions. */
 export function isReturnItemCondition(value: unknown): value is ReturnItemCondition {
   return isOneOf(RETURN_ITEM_CONDITIONS, value);
 }
 
+/** Type guard for reserved return method identifiers. */
 export function isReturnMethodType(value: unknown): value is ReturnMethodType {
   return isOneOf(RETURN_METHOD_TYPES, value);
 }
 
+/** Asserts that a value is a valid initiate-return request. */
 export function assertInitiateReturnRequest(
   value: unknown
 ): asserts value is InitiateReturnRequest {
@@ -449,6 +471,7 @@ export function assertInitiateReturnRequest(
   throwIfIssues("Invalid initiate return request", issues);
 }
 
+/** Asserts that a value is a valid order lookup request. */
 export function assertLookupOrderRequest(value: unknown): asserts value is LookupOrderRequest {
   const issues: ProtocolValidationIssue[] = [];
   if (!isRecord(value)) {
@@ -460,6 +483,7 @@ export function assertLookupOrderRequest(value: unknown): asserts value is Looku
   throwIfIssues("Invalid order lookup request", issues);
 }
 
+/** Asserts that a value contains a non-empty return id. */
 export function assertReturnIdRequest(value: unknown): asserts value is ReturnIdRequest {
   const issues: ProtocolValidationIssue[] = [];
   if (!isRecord(value)) {
@@ -470,6 +494,7 @@ export function assertReturnIdRequest(value: unknown): asserts value is ReturnId
   throwIfIssues("Invalid return id request", issues);
 }
 
+/** Asserts that a value is a valid list-returns filter request. */
 export function assertListReturnsRequest(value: unknown): asserts value is ListReturnsRequest {
   const issues: ProtocolValidationIssue[] = [];
   if (!isRecord(value)) {
@@ -488,6 +513,7 @@ export function assertListReturnsRequest(value: unknown): asserts value is ListR
   throwIfIssues("Invalid return list request", issues);
 }
 
+/** Asserts that a value is a valid lifecycle update request. */
 export function assertUpdateReturnRequest(value: unknown): asserts value is UpdateReturnRequest {
   const issues: ProtocolValidationIssue[] = [];
   if (!isRecord(value)) {
@@ -517,6 +543,7 @@ export function assertUpdateReturnRequest(value: unknown): asserts value is Upda
   throwIfIssues("Invalid update return request", issues);
 }
 
+/** Asserts that a value is a valid exchange item selection request. */
 export function assertSelectExchangeRequest(
   value: unknown
 ): asserts value is SelectExchangeRequest {
@@ -535,6 +562,7 @@ export function assertSelectExchangeRequest(
   throwIfIssues("Invalid exchange selection request", issues);
 }
 
+/** Asserts that a value is a valid carrier selection request. */
 export function assertSelectCarrierRequest(value: unknown): asserts value is SelectCarrierRequest {
   const issues: ProtocolValidationIssue[] = [];
   if (!isRecord(value)) {
@@ -561,6 +589,7 @@ export function assertSelectCarrierRequest(value: unknown): asserts value is Sel
   throwIfIssues("Invalid carrier selection request", issues);
 }
 
+/** Asserts that a value is a valid carrier tracking update request. */
 export function assertAddTrackingRequest(value: unknown): asserts value is AddTrackingRequest {
   const issues: ProtocolValidationIssue[] = [];
   if (!isRecord(value)) {
@@ -575,6 +604,7 @@ export function assertAddTrackingRequest(value: unknown): asserts value is AddTr
   throwIfIssues("Invalid tracking request", issues);
 }
 
+/** Asserts that a value is a valid webhook event. */
 export function assertWebhookEvent(value: unknown): asserts value is WebhookEvent {
   const issues: ProtocolValidationIssue[] = [];
   if (!isRecord(value)) {
@@ -593,6 +623,7 @@ export function assertWebhookEvent(value: unknown): asserts value is WebhookEven
   throwIfIssues("Invalid webhook event", issues);
 }
 
+/** Asserts that a value is a valid OAuth token delegation request. */
 export function assertTokenDelegationRequest(
   value: unknown
 ): asserts value is TokenDelegationRequest {
@@ -849,8 +880,15 @@ function validateCouponCodeResult(
   if ("amount" in value && value.amount !== undefined) {
     validateMoney(value.amount, `${path}.amount`, issues);
   }
-  if ("percentage" in value && value.percentage !== undefined && typeof value.percentage !== "number") {
-    issues.push({ path: `${path}.percentage`, message: "Expected number" });
+  if ("percentage" in value && value.percentage !== undefined) {
+    if (
+      typeof value.percentage !== "number" ||
+      !Number.isFinite(value.percentage) ||
+      value.percentage <= 0 ||
+      value.percentage > 100
+    ) {
+      issues.push({ path: `${path}.percentage`, message: "Expected number greater than 0 and at most 100" });
+    }
   }
   optionalString(value, "expiresAt", `${path}.expiresAt`, issues);
   requireNonEmptyString(value, "issuedAt", `${path}.issuedAt`, issues);

@@ -10,6 +10,7 @@ function fromJson(value: Prisma.JsonValue): OpenReturnRecord {
   return value as unknown as OpenReturnRecord;
 }
 
+/** Prisma-backed repository for PostgreSQL persistence. */
 export class PrismaReturnRepository implements ReturnRepository {
   public constructor(private readonly prisma = new PrismaClient()) {}
 

@@ -16,6 +16,7 @@ import type {
   WebhookEvent
 } from "@openreturn/types";
 
+/** REST API client used by MCP tools to call an OpenReturn API server. */
 export class OpenReturnApiClient {
   private accessToken?: string;
 
@@ -25,15 +26,18 @@ export class OpenReturnApiClient {
     private readonly subjectToken?: string
   ) {}
 
+  /** Reads the retailer discovery document. */
   public async discover(): Promise<OpenReturnDiscoveryDocument> {
     return this.request<OpenReturnDiscoveryDocument>("/.well-known/openreturn");
   }
 
+  /** Looks up an order through the API's configured commerce adapter. */
   public async lookupOrder(input: LookupOrderRequest): Promise<{ order: Order }> {
     const query = input.email ? `?email=${encodeURIComponent(input.email)}` : "";
     return this.request<{ order: Order }>(`/orders/${encodeURIComponent(input.orderId)}${query}`);
   }
 
+  /** Lists returns with optional status, email, and limit filters. */
   public async listReturns(input: ListReturnsRequest = {}): Promise<{ returns: OpenReturnRecord[] }> {
     const params = new URLSearchParams();
     if (input.status) {
@@ -49,14 +53,17 @@ export class OpenReturnApiClient {
     return this.request<{ returns: OpenReturnRecord[] }>(`/returns${query}`);
   }
 
+  /** Initiates a return through the REST API. */
   public async initiateReturn(input: InitiateReturnRequest): Promise<InitiateReturnResponse> {
     return this.request<InitiateReturnResponse>("/returns", { method: "POST", body: input });
   }
 
+  /** Fetches a return record by id. */
   public async getReturnStatus(id: string): Promise<{ return: OpenReturnRecord }> {
     return this.request<{ return: OpenReturnRecord }>(`/returns/${encodeURIComponent(id)}`);
   }
 
+  /** Applies lifecycle or resolution updates to a return. */
   public async updateReturn(
     id: string,
     input: UpdateReturnRequest
@@ -67,6 +74,7 @@ export class OpenReturnApiClient {
     });
   }
 
+  /** Selects replacement items for an exchange return. */
   public async selectExchange(
     id: string,
     input: SelectExchangeRequest
@@ -77,6 +85,7 @@ export class OpenReturnApiClient {
     });
   }
 
+  /** Selects a carrier and generates a label for a return. */
   public async selectCarrier(
     id: string,
     input: SelectCarrierRequest
@@ -87,10 +96,12 @@ export class OpenReturnApiClient {
     });
   }
 
+  /** Retrieves generated shipping label metadata. */
   public async getLabel(id: string): Promise<{ label: ShippingLabel }> {
     return this.request<{ label: ShippingLabel }>(`/returns/${encodeURIComponent(id)}/label`);
   }
 
+  /** Adds a carrier tracking event to a return. */
   public async trackReturn(
     id: string,
     input: AddTrackingRequest
@@ -101,10 +112,12 @@ export class OpenReturnApiClient {
     });
   }
 
+  /** Retrieves the event history for a return. */
   public async getReturnEvents(id: string): Promise<{ events: ReturnEvent[] }> {
     return this.request<{ events: ReturnEvent[] }>(`/returns/${encodeURIComponent(id)}/events`);
   }
 
+  /** Submits a carrier or commerce webhook event to the REST API. */
   public async receiveWebhook(
     input: WebhookEvent
   ): Promise<{ accepted: boolean; return: OpenReturnRecord | null }> {

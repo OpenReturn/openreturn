@@ -1,6 +1,7 @@
 import "dotenv/config";
 import type { CarrierCode } from "@openreturn/types";
 
+/** Runtime configuration for the OpenReturn REST API. */
 export interface ApiConfig {
   nodeEnv: string;
   port: number;
@@ -27,6 +28,7 @@ export interface ApiConfig {
   };
 }
 
+/** Raised when environment variables cannot produce a safe API configuration. */
 export class ConfigValidationError extends Error {
   public constructor(public readonly issues: string[]) {
     super(`Invalid environment configuration: ${issues.join("; ")}`);
@@ -39,6 +41,7 @@ function optionalEnv(name: string): string | undefined {
   return value && value.length > 0 ? value : undefined;
 }
 
+/** Loads and validates API configuration from environment variables. */
 export function loadConfig(): ApiConfig {
   const issues: string[] = [];
   const nodeEnv = process.env.NODE_ENV ?? "development";
@@ -148,6 +151,7 @@ function parseOptionalUrl(name: string, issues: string[]): string | undefined {
   }
 }
 
+/** Resolves the configured API key for a built-in carrier. */
 export function carrierApiKey(config: ApiConfig, carrier: CarrierCode): string {
   return config.adapters.carrierApiKeys[carrier];
 }

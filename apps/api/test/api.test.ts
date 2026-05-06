@@ -327,4 +327,22 @@ describe("OpenReturn API", () => {
 
     expect(unmatched.body).toEqual({ accepted: true, return: null });
   });
+
+  it("hides unexpected internal error messages in production", async () => {
+    const app = createApp({
+      config: testConfig({ nodeEnv: "production" }),
+      service: {
+        listReturns: async () => {
+          throw new Error("database password leaked");
+        }
+      } as never
+    });
+
+    const response = await request(app).get("/returns").expect(500);
+
+    expect(response.body.error).toEqual({
+      code: "internal_error",
+      message: "Internal server error"
+    });
+  });
 });

@@ -1,6 +1,7 @@
 import type { ReturnEventType, ReturnState, TrackingStatus } from "@openreturn/types";
 import { conflict } from "./errors";
 
+/** Allowed lifecycle transitions for each OpenReturn state. */
 export const RETURN_STATE_TRANSITIONS: Record<ReturnState, ReturnState[]> = {
   initiated: ["label_generated", "approved", "rejected"],
   label_generated: ["shipped", "in_transit", "delivered", "rejected"],
@@ -15,10 +16,12 @@ export const RETURN_STATE_TRANSITIONS: Record<ReturnState, ReturnState[]> = {
   completed: []
 };
 
+/** Returns whether a lifecycle transition is permitted by the protocol state machine. */
 export function canTransition(from: ReturnState, to: ReturnState): boolean {
   return from === to || RETURN_STATE_TRANSITIONS[from].includes(to);
 }
 
+/** Throws a protocol conflict when a lifecycle transition is not permitted. */
 export function assertTransition(from: ReturnState, to: ReturnState): void {
   if (!canTransition(from, to)) {
     throw conflict(`Invalid return state transition from ${from} to ${to}`, {
@@ -29,6 +32,7 @@ export function assertTransition(from: ReturnState, to: ReturnState): void {
   }
 }
 
+/** Maps a carrier tracking status onto the corresponding return lifecycle state. */
 export function stateForTrackingStatus(status: TrackingStatus): ReturnState {
   switch (status) {
     case "label_created":
@@ -45,6 +49,7 @@ export function stateForTrackingStatus(status: TrackingStatus): ReturnState {
   }
 }
 
+/** Returns the canonical event type emitted for a lifecycle state. */
 export function eventTypeForState(state: ReturnState): ReturnEventType {
   switch (state) {
     case "initiated":

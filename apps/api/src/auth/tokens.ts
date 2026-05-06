@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import type { OAuthTokenResponse } from "@openreturn/types";
 import type { ApiConfig } from "../config";
 
+/** Claims embedded in OpenReturn bearer tokens. */
 export interface AuthClaims {
   sub: string;
   iss: string;
@@ -13,21 +14,26 @@ export interface AuthClaims {
   };
 }
 
+/** Express request augmented with verified authentication claims. */
 export interface AuthenticatedRequest extends Request {
   auth?: AuthClaims;
 }
 
+/** Issues and verifies reference OAuth bearer tokens for API and MCP clients. */
 export class OAuthTokenService {
   public constructor(private readonly config: ApiConfig) {}
 
+  /** Issues a client token for the requested scope string. */
   public issueClientToken(clientId: string, scope: string): OAuthTokenResponse {
     return this.sign({ sub: clientId, scope });
   }
 
+  /** Issues a delegated token preserving the consumer subject and recording the acting agent. */
   public issueDelegatedToken(subject: AuthClaims, actor: string, scope: string): OAuthTokenResponse {
     return this.sign({ sub: subject.sub, scope, act: { sub: actor } });
   }
 
+  /** Verifies a bearer token against configured issuer, audience, and signing secret. */
   public verify(token: string): AuthClaims {
     return jwt.verify(token, this.config.oauthTokenSecret, {
       issuer: this.config.oauthIssuer,
@@ -64,6 +70,7 @@ export class OAuthTokenService {
   }
 }
 
+/** Best-effort auth middleware that attaches claims when a valid bearer token is present. */
 export function optionalAuth(tokenService: OAuthTokenService) {
   return (request: AuthenticatedRequest, _response: Response, next: NextFunction): void => {
     const header = request.header("authorization");
@@ -80,6 +87,7 @@ export function optionalAuth(tokenService: OAuthTokenService) {
   };
 }
 
+/** Required bearer-token middleware that enforces an optional scope. */
 export function requireAuth(tokenService: OAuthTokenService, requiredScope?: string) {
   return (request: AuthenticatedRequest, response: Response, next: NextFunction): void => {
     const header = request.header("authorization");

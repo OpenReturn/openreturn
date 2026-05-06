@@ -696,7 +696,7 @@ components:
         code: { type: string }
         amount:
           $ref: "#/components/schemas/Money"
-        percentage: { type: number }
+        percentage: { type: number, exclusiveMinimum: 0, maximum: 100 }
         expiresAt: { type: string, format: date-time }
         issuedAt: { type: string, format: date-time }
     ReturnEvent:

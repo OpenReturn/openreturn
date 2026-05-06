@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import type { NotificationDispatcher, NotificationMessage } from "@openreturn/core";
 import type { ApiConfig } from "../config";
 
+/** SMTP notification dispatcher used by non-test API runs. */
 export class SmtpNotificationDispatcher implements NotificationDispatcher {
   private readonly transporter: nodemailer.Transporter;
 

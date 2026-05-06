@@ -2,12 +2,14 @@ import { randomUUID } from "node:crypto";
 import type { Money, PaymentProviderCode, RefundResult } from "@openreturn/types";
 import { AdapterError } from "../errors";
 
+/** Configuration accepted by the Stripe-compatible mock payment adapter. */
 export interface PaymentAdapterConfig {
   apiKey: string;
   webhookSecret?: string;
   currency?: string;
 }
 
+/** Input required to issue an idempotent refund. */
 export interface RefundInput {
   orderId: string;
   amount: Money;
@@ -15,6 +17,7 @@ export interface RefundInput {
   idempotencyKey?: string;
 }
 
+/** Input required to charge a return shipping fee. */
 export interface ReturnShippingFeeInput {
   returnId: string;
   customerEmail: string;
@@ -22,6 +25,7 @@ export interface ReturnShippingFeeInput {
   description?: string;
 }
 
+/** Payment intent returned when collecting return shipping fees. */
 export interface PaymentIntent {
   id: string;
   provider: PaymentProviderCode | string;
@@ -31,6 +35,7 @@ export interface PaymentIntent {
   createdAt: string;
 }
 
+/** Payment integration contract for refunds and return shipping fee collection. */
 export interface PaymentAdapter {
   readonly code: PaymentProviderCode | string;
   readonly name: string;
@@ -39,6 +44,7 @@ export interface PaymentAdapter {
   cancelPaymentIntent(id: string): Promise<void>;
 }
 
+/** Stripe-compatible mock payment adapter with idempotent refund behavior. */
 export class StripePaymentAdapter implements PaymentAdapter {
   public readonly code = "stripe";
   public readonly name = "Stripe";
@@ -47,9 +53,10 @@ export class StripePaymentAdapter implements PaymentAdapter {
 
   public constructor(private readonly config: PaymentAdapterConfig) {}
 
+  /** Issues a mock refund and reuses the result for repeated idempotency keys. */
   public async refund(input: RefundInput): Promise<RefundResult> {
     this.validateMoney(input.amount);
-    if (!input.orderId) {
+    if (!input.orderId?.trim()) {
       throw new AdapterError("invalid_refund_request", "orderId is required for Stripe refunds");
     }
     if (input.idempotencyKey) {
@@ -71,11 +78,12 @@ export class StripePaymentAdapter implements PaymentAdapter {
     return refund;
   }
 
+  /** Creates a mock payment intent for a return shipping fee. */
   public async createReturnShippingFeePayment(
     input: ReturnShippingFeeInput
   ): Promise<PaymentIntent> {
     this.validateMoney(input.amount);
-    if (!input.returnId || !input.customerEmail) {
+    if (!input.returnId?.trim() || !input.customerEmail?.trim()) {
       throw new AdapterError(
         "invalid_payment_request",
         "returnId and customerEmail are required for return shipping fee payments"
@@ -94,6 +102,7 @@ export class StripePaymentAdapter implements PaymentAdapter {
     return intent;
   }
 
+  /** Cancels an existing mock payment intent. */
   public async cancelPaymentIntent(id: string): Promise<void> {
     const intent = this.paymentIntents.get(id);
     if (!intent) {
@@ -103,11 +112,18 @@ export class StripePaymentAdapter implements PaymentAdapter {
   }
 
   private validateMoney(amount: Money): void {
-    if (!Number.isInteger(amount.amount) || amount.amount <= 0) {
+    if (!isRecord(amount)) {
+      throw new AdapterError("invalid_money", "amount must be an object");
+    }
+    if (!Number.isInteger(amount.amount) || Number(amount.amount) <= 0) {
       throw new AdapterError("invalid_money", "amount.amount must be an integer greater than zero");
     }
-    if (!amount.currency || amount.currency.length !== 3) {
+    if (typeof amount.currency !== "string" || !/^[A-Z]{3}$/.test(amount.currency)) {
       throw new AdapterError("invalid_money", "amount.currency must be a 3-letter ISO currency code");
     }
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

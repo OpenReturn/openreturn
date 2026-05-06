@@ -1,5 +1,6 @@
 import type { NotificationType, OpenReturnRecord } from "@openreturn/types";
 
+/** Fully rendered notification payload sent by a dispatcher. */
 export interface NotificationMessage {
   type: NotificationType;
   returnRecord: OpenReturnRecord;
@@ -8,10 +9,12 @@ export interface NotificationMessage {
   html?: string;
 }
 
+/** Transport boundary for transactional return notifications. */
 export interface NotificationDispatcher {
   dispatch(message: NotificationMessage): Promise<void>;
 }
 
+/** Notification dispatcher that records messages in memory without external side effects. */
 export class NoopNotificationDispatcher implements NotificationDispatcher {
   public readonly sent: NotificationMessage[] = [];
 
@@ -20,6 +23,7 @@ export class NoopNotificationDispatcher implements NotificationDispatcher {
   }
 }
 
+/** Builds the default transactional email content for a return notification. */
 export function buildNotificationMessage(
   type: NotificationType,
   returnRecord: OpenReturnRecord

@@ -78,6 +78,31 @@ describe("adapter implementations", () => {
     ).rejects.toThrow(AdapterError);
   });
 
+  it("returns adapter errors instead of raw type errors for malformed runtime inputs", async () => {
+    const [carrier] = createMockCarrierAdapters({ apiKey: "test" });
+    const [platform] = createMockPlatformAdapters({ apiKey: "test" });
+    const [generic] = createMockGenericCommerceAdapters({ apiKey: "test" });
+    const stripe = new StripePaymentAdapter({ apiKey: "test" });
+
+    await expect(
+      carrier!.createLabel({
+        returnId: "ret_12345678",
+        orderId: "order_1",
+        carrier: carrier!.code,
+        customer: undefined,
+        items: undefined
+      } as never)
+    ).rejects.toThrow(AdapterError);
+    await expect(platform!.createReturnAuthorization("ORDER-1", undefined as never)).rejects.toThrow(AdapterError);
+    await expect(generic!.syncReturnStatus("ret_1", "")).rejects.toThrow(AdapterError);
+    await expect(
+      stripe.refund({
+        orderId: "ORDER-1",
+        amount: { amount: 1000, currency: "eur" }
+      })
+    ).rejects.toThrow(AdapterError);
+  });
+
   it("looks up orders through platform and generic adapters", async () => {
     const platform = createMockPlatformAdapters({ apiKey: "test" })[0];
     const generic = createMockGenericCommerceAdapters({ apiKey: "test" })[0];

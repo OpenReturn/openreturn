@@ -35,6 +35,7 @@ export interface ReturnServiceOptions {
   notifications?: NotificationDispatcher;
 }
 
+/** Coordinates return lifecycle operations across persistence, carriers, methods, and notifications. */
 export class ReturnService {
   private readonly repository: ReturnRepository;
   private readonly carriers: Map<string, CarrierAdapter>;
@@ -48,6 +49,7 @@ export class ReturnService {
     this.notifications = options.notifications ?? new NoopNotificationDispatcher();
   }
 
+  /** Creates a new OpenReturn record after validating protocol and method support. */
   public async initiateReturn(request: InitiateReturnRequest): Promise<OpenReturnRecord> {
     this.validateInitiateRequest(request);
     const now = new Date().toISOString();
@@ -93,10 +95,12 @@ export class ReturnService {
     return this.notify("return_confirmation", saved);
   }
 
+  /** Lists return records using repository-supported filters. */
   public async listReturns(filter?: ReturnListFilter): Promise<OpenReturnRecord[]> {
     return this.repository.list(filter);
   }
 
+  /** Loads a return record or throws a not-found protocol error. */
   public async getReturn(id: string): Promise<OpenReturnRecord> {
     const record = await this.repository.findById(id);
     if (!record) {
@@ -105,6 +109,7 @@ export class ReturnService {
     return record;
   }
 
+  /** Applies lifecycle and resolution updates after enforcing state-machine rules. */
   public async updateReturn(id: string, request: UpdateReturnRequest): Promise<OpenReturnRecord> {
     const record = await this.getReturn(id);
     if (
@@ -158,6 +163,7 @@ export class ReturnService {
     return next;
   }
 
+  /** Reserves replacement items for an exchange return. */
   public async selectExchange(
     id: string,
     request: SelectExchangeRequest
@@ -198,6 +204,7 @@ export class ReturnService {
     return this.repository.update(next);
   }
 
+  /** Selects a carrier and generates a shipping label for the return. */
   public async selectCarrier(id: string, request: SelectCarrierRequest): Promise<OpenReturnRecord> {
     const record = await this.getReturn(id);
     if (!request.carrier) {
@@ -261,6 +268,7 @@ export class ReturnService {
     return this.notify("label_ready", saved);
   }
 
+  /** Retrieves generated label metadata for a return. */
   public async getLabel(id: string): Promise<ShippingLabel> {
     const record = await this.getReturn(id);
     if (!record.label) {
@@ -269,6 +277,7 @@ export class ReturnService {
     return record.label;
   }
 
+  /** Adds a carrier tracking update and advances the lifecycle when appropriate. */
   public async addTracking(id: string, request: AddTrackingRequest): Promise<OpenReturnRecord> {
     const record = await this.getReturn(id);
     if (!isTrackingStatus(request.status)) {
@@ -315,11 +324,13 @@ export class ReturnService {
     return saved;
   }
 
+  /** Returns the complete event history for a return. */
   public async getEvents(id: string): Promise<ReturnEvent[]> {
     const record = await this.getReturn(id);
     return record.events;
   }
 
+  /** Applies a webhook event by return id or tracking number, returning null for unmatched events. */
   public async receiveWebhook(event: WebhookEvent): Promise<OpenReturnRecord | null> {
     const record = event.returnId
       ? await this.repository.findById(event.returnId)

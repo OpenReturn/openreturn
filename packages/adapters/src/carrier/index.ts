@@ -10,6 +10,7 @@ import type {
 } from "@openreturn/types";
 import { AdapterError } from "../errors";
 
+/** Shared configuration accepted by the built-in mock carrier adapters. */
 export interface CarrierAdapterConfig {
   apiKey?: string;
   apiKeys?: Partial<Record<CarrierCode, string>>;
@@ -17,6 +18,7 @@ export interface CarrierAdapterConfig {
   defaultServiceLevel?: string;
 }
 
+/** Input required to generate a return shipping label. */
 export interface CreateLabelInput {
   returnId: string;
   orderId: string;
@@ -28,6 +30,7 @@ export interface CreateLabelInput {
   shipTo?: Address;
 }
 
+/** Carrier integration contract used by the core return service. */
 export interface CarrierAdapter {
   readonly code: CarrierCode | string;
   readonly name: string;
@@ -36,6 +39,7 @@ export interface CarrierAdapter {
   cancelLabel(labelId: string): Promise<void>;
 }
 
+/** Stateful mock carrier base class that simulates labels, tracking, and cancellation. */
 export abstract class MockCarrierAdapter implements CarrierAdapter {
   public abstract readonly code: CarrierCode | string;
   public abstract readonly name: string;
@@ -46,6 +50,7 @@ export abstract class MockCarrierAdapter implements CarrierAdapter {
 
   protected constructor(private readonly config: CarrierAdapterConfig) {}
 
+  /** Generates a mock label after validating credentials, service level, and request shape. */
   public async createLabel(input: CreateLabelInput): Promise<ShippingLabel> {
     this.assertConfigured();
     this.validateLabelInput(input);
@@ -72,6 +77,7 @@ export abstract class MockCarrierAdapter implements CarrierAdapter {
     return label;
   }
 
+  /** Returns a deterministic mock tracking timeline for known labels. */
   public async trackShipment(trackingNumber: string): Promise<TrackingEvent[]> {
     const label = [...this.labels.values()].find((candidate) => candidate.trackingNumber === trackingNumber);
     if (!label) {
@@ -129,6 +135,7 @@ export abstract class MockCarrierAdapter implements CarrierAdapter {
     ];
   }
 
+  /** Marks an existing mock label as cancelled. */
   public async cancelLabel(labelId: string): Promise<void> {
     if (!this.labels.has(labelId)) {
       throw new AdapterError("label_not_found", `Label not found: ${labelId}`);
@@ -169,23 +176,36 @@ export abstract class MockCarrierAdapter implements CarrierAdapter {
   }
 
   private validateLabelInput(input: CreateLabelInput): void {
-    if (!input.returnId || !input.orderId) {
+    if (!isRecord(input)) {
+      throw new AdapterError("invalid_label_request", "Label request must be an object", input);
+    }
+    if (
+      typeof input.returnId !== "string" ||
+      input.returnId.trim().length === 0 ||
+      typeof input.orderId !== "string" ||
+      input.orderId.trim().length === 0
+    ) {
       throw new AdapterError("invalid_label_request", "returnId and orderId are required", input);
     }
-    if (!input.customer.email) {
+    if (
+      !isRecord(input.customer) ||
+      typeof input.customer.email !== "string" ||
+      input.customer.email.trim().length === 0
+    ) {
       throw new AdapterError("invalid_label_request", "customer.email is required", input);
     }
-    if (input.items.length === 0) {
+    if (!Array.isArray(input.items) || input.items.length === 0) {
       throw new AdapterError("invalid_label_request", "At least one item is required", input);
     }
     for (const item of input.items) {
-      if (item.quantity < 1) {
+      if (!isRecord(item) || !Number.isInteger(item.quantity) || Number(item.quantity) < 1) {
         throw new AdapterError("invalid_label_request", "Item quantity must be at least 1", item);
       }
     }
   }
 }
 
+/** PostNL mock carrier implementation. */
 export class PostNLCarrierAdapter extends MockCarrierAdapter {
   public readonly code = "postnl";
   public readonly name = "PostNL";
@@ -196,6 +216,7 @@ export class PostNLCarrierAdapter extends MockCarrierAdapter {
   }
 }
 
+/** DHL mock carrier implementation. */
 export class DHLCarrierAdapter extends MockCarrierAdapter {
   public readonly code = "dhl";
   public readonly name = "DHL";
@@ -206,6 +227,7 @@ export class DHLCarrierAdapter extends MockCarrierAdapter {
   }
 }
 
+/** UPS mock carrier implementation. */
 export class UPSCarrierAdapter extends MockCarrierAdapter {
   public readonly code = "ups";
   public readonly name = "UPS";
@@ -216,6 +238,7 @@ export class UPSCarrierAdapter extends MockCarrierAdapter {
   }
 }
 
+/** DPD mock carrier implementation. */
 export class DPDCarrierAdapter extends MockCarrierAdapter {
   public readonly code = "dpd";
   public readonly name = "DPD";
@@ -226,6 +249,7 @@ export class DPDCarrierAdapter extends MockCarrierAdapter {
   }
 }
 
+/** Budbee mock carrier implementation with pickup-route tracking simulation. */
 export class BudbeeCarrierAdapter extends MockCarrierAdapter {
   public readonly code = "budbee";
   public readonly name = "Budbee";
@@ -258,6 +282,7 @@ export class BudbeeCarrierAdapter extends MockCarrierAdapter {
   }
 }
 
+/** Creates every built-in mock carrier adapter with shared configuration. */
 export function createMockCarrierAdapters(config: CarrierAdapterConfig): CarrierAdapter[] {
   return [
     new PostNLCarrierAdapter(config),
@@ -266,4 +291,8 @@ export function createMockCarrierAdapters(config: CarrierAdapterConfig): Carrier
     new DPDCarrierAdapter(config),
     new BudbeeCarrierAdapter(config)
   ];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

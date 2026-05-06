@@ -16,6 +16,7 @@ import {
 } from "@openreturn/types";
 import type { OpenReturnApiClient } from "./api-client";
 
+/** MCP tool metadata advertised to clients. */
 export interface McpToolDefinition {
   name: string;
   description: string;
@@ -58,6 +59,7 @@ const returnItemSchema = {
   }
 };
 
+/** Complete OpenReturn MCP tool list. */
 export const tools: McpToolDefinition[] = [
   {
     name: "discover_openreturn",
@@ -239,6 +241,7 @@ export const tools: McpToolDefinition[] = [
   }
 ];
 
+/** Validates and dispatches an MCP tool call to the REST API client. */
 export async function callTool(
   client: OpenReturnApiClient,
   name: string,

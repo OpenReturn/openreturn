@@ -3,6 +3,7 @@ import { OpenReturnApiClient } from "./api-client";
 import type { JsonRpcRequest, JsonRpcResponse } from "./json-rpc";
 import { callTool, tools } from "./tools";
 
+/** Creates the MCP JSON-RPC handler for initialize, tools/list, and tools/call. */
 export function createMcpHandler(client: OpenReturnApiClient) {
   return async function handle(request: JsonRpcRequest): Promise<JsonRpcResponse | undefined> {
     try {
@@ -47,6 +48,7 @@ export function createMcpHandler(client: OpenReturnApiClient) {
   };
 }
 
+/** Starts an HTTP JSON-RPC endpoint for MCP clients that do not use stdio. */
 export function startHttpMcpServer(
   handler: (request: JsonRpcRequest) => Promise<JsonRpcResponse | undefined>,
   port: number
@@ -107,6 +109,9 @@ export function startHttpMcpServer(
         response.writeHead(200, { "content-type": "application/json" });
         response.end(JSON.stringify(rpcResponse ?? { ok: true }));
       })().catch((caught) => {
+        if (response.headersSent) {
+          return;
+        }
         const message = caught instanceof Error ? caught.message : "Internal MCP error";
         response.writeHead(500, { "content-type": "application/json" });
         response.end(JSON.stringify({ error: message }));

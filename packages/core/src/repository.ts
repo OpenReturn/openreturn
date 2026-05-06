@@ -1,12 +1,14 @@
 import type { OpenReturnRecord, ReturnEvent, ReturnState } from "@openreturn/types";
 import { notFound } from "./errors";
 
+/** Filters supported by repository-backed return listing operations. */
 export interface ReturnListFilter {
   status?: ReturnState;
   email?: string;
   limit?: number;
 }
 
+/** Persistence contract used by the core service. */
 export interface ReturnRepository {
   create(record: OpenReturnRecord): Promise<OpenReturnRecord>;
   findById(id: string): Promise<OpenReturnRecord | null>;
@@ -20,6 +22,7 @@ function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+/** In-process repository for tests, demos, and local runs without PostgreSQL. */
 export class InMemoryReturnRepository implements ReturnRepository {
   private readonly records = new Map<string, OpenReturnRecord>();
 
@@ -58,6 +61,9 @@ export class InMemoryReturnRepository implements ReturnRepository {
   }
 
   public async update(record: OpenReturnRecord): Promise<OpenReturnRecord> {
+    if (!this.records.has(record.id)) {
+      throw notFound(`Return not found: ${record.id}`);
+    }
     this.records.set(record.id, clone(record));
     return clone(record);
   }

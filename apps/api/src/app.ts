@@ -60,6 +60,7 @@ function asyncHandler(handler: AsyncHandler) {
   };
 }
 
+/** Creates the Express application with injectable service and adapter dependencies for tests. */
 export function createApp(dependencies: AppDependencies = {}) {
   const config = dependencies.config ?? loadConfig();
   const tokenService = new OAuthTokenService(config);
@@ -382,7 +383,12 @@ export function createApp(dependencies: AppDependencies = {}) {
       });
       return;
     }
-    const message = error instanceof Error ? error.message : "Internal server error";
+    const message =
+      config.nodeEnv === "production"
+        ? "Internal server error"
+        : error instanceof Error
+          ? error.message
+          : "Internal server error";
     response.status(500).json({ error: { code: "internal_error", message } });
   });
 

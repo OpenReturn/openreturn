@@ -9,11 +9,13 @@ import type {
 } from "@openreturn/types";
 import { AdapterError } from "../errors";
 
+/** Configuration for mock platform adapters. */
 export interface PlatformAdapterConfig {
   apiKey: string;
   storeUrl?: string;
 }
 
+/** Commerce platform contract for order lookup and return synchronization. */
 export interface PlatformAdapter {
   readonly code: PlatformCode | string;
   readonly name: string;
@@ -25,6 +27,7 @@ export interface PlatformAdapter {
 
 const defaultMoney: Money = { amount: 8999, currency: "EUR" };
 
+/** Stateful mock platform base class for local development and tests. */
 export abstract class MockPlatformAdapter implements PlatformAdapter {
   public abstract readonly code: PlatformCode | string;
   public abstract readonly name: string;
@@ -34,6 +37,7 @@ export abstract class MockPlatformAdapter implements PlatformAdapter {
 
   protected constructor(protected readonly config: PlatformAdapterConfig) {}
 
+  /** Looks up a mock order unless the id is empty or starts with MISSING. */
   public async lookupOrder(orderId: string, email = "customer@example.com"): Promise<Order | null> {
     if (!orderId || orderId.toUpperCase().startsWith("MISSING")) {
       return null;
@@ -80,11 +84,12 @@ export abstract class MockPlatformAdapter implements PlatformAdapter {
     };
   }
 
+  /** Creates or returns an idempotent mock return authorization for an order. */
   public async createReturnAuthorization(orderId: string, items: ReturnItem[]): Promise<string> {
-    if (!orderId) {
+    if (!orderId?.trim()) {
       throw new AdapterError("invalid_authorization_request", "orderId is required to create a return authorization");
     }
-    if (items.length === 0) {
+    if (!Array.isArray(items) || items.length === 0) {
       throw new AdapterError(
         "invalid_authorization_request",
         "At least one return item is required to create a return authorization"
@@ -99,18 +104,20 @@ export abstract class MockPlatformAdapter implements PlatformAdapter {
     return authorization;
   }
 
+  /** Records that the platform order was marked as refunded. */
   public async markRefunded(orderId: string, refund: RefundResult): Promise<void> {
-    if (!orderId) {
+    if (!orderId?.trim()) {
       throw new AdapterError("invalid_refund_sync", "orderId is required to mark a refund");
     }
     this.refunds.set(orderId, refund);
   }
 
+  /** Records that the platform order has an exchange request. */
   public async markExchangeRequested(
     orderId: string,
     exchange: ExchangeSelection
   ): Promise<void> {
-    if (!orderId) {
+    if (!orderId?.trim()) {
       throw new AdapterError("invalid_exchange_sync", "orderId is required to mark an exchange");
     }
     this.exchanges.set(orderId, exchange);
@@ -122,26 +129,31 @@ export abstract class MockPlatformAdapter implements PlatformAdapter {
   }
 }
 
+/** Shopify mock platform implementation. */
 export class ShopifyPlatformAdapter extends MockPlatformAdapter {
   public readonly code = "shopify";
   public readonly name = "Shopify";
 }
 
+/** WooCommerce mock platform implementation. */
 export class WooCommercePlatformAdapter extends MockPlatformAdapter {
   public readonly code = "woocommerce";
   public readonly name = "WooCommerce";
 }
 
+/** Magento mock platform implementation. */
 export class MagentoPlatformAdapter extends MockPlatformAdapter {
   public readonly code = "magento";
   public readonly name = "Magento";
 }
 
+/** BigCommerce mock platform implementation. */
 export class BigCommercePlatformAdapter extends MockPlatformAdapter {
   public readonly code = "bigcommerce";
   public readonly name = "BigCommerce";
 }
 
+/** Creates every built-in mock platform adapter with shared configuration. */
 export function createMockPlatformAdapters(config: PlatformAdapterConfig): PlatformAdapter[] {
   return [
     new ShopifyPlatformAdapter(config),

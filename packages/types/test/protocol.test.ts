@@ -117,5 +117,15 @@ describe("OpenReturn protocol constants", () => {
         storeCredit: { amount: { amount: 1000, currency: "eur" }, issuedAt: "now" }
       })
     ).toThrow(ProtocolValidationError);
+    expect(() =>
+      assertUpdateReturnRequest({
+        status: "completed",
+        couponCode: {
+          code: "COUPON",
+          percentage: 150,
+          issuedAt: new Date().toISOString()
+        }
+      })
+    ).toThrow(ProtocolValidationError);
   });
 });

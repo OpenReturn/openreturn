@@ -5,6 +5,7 @@ import {
   InMemoryReturnRepository,
   type NotificationDispatcher,
   NoopNotificationDispatcher,
+  notFound,
   ReturnService,
   canTransition
 } from "../src";
@@ -32,6 +33,28 @@ describe("return state machine", () => {
 });
 
 describe("return service", () => {
+  it("does not create records through repository updates", async () => {
+    const repository = new InMemoryReturnRepository();
+
+    await expect(
+      repository.update({
+        id: "missing",
+        orderId: "ORDER-MISSING",
+        customer: { email: "customer@example.com" },
+        status: "initiated",
+        requestedResolution: "refund",
+        reasonCodes: ["other"],
+        items: [],
+        returnMethod: "return-to-warehouse",
+        tracking: [],
+        events: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      })
+    ).rejects.toThrow("Return not found: missing");
+    expect(notFound("x").statusCode).toBe(404);
+  });
+
   it("initiates a refund return, generates a label, and records tracking", async () => {
     const { service, notifications } = createService();
     const record = await service.initiateReturn({
