@@ -1,7 +1,10 @@
+import { createServer } from "node:http";
 import { describe, expect, it } from "vitest";
 import request from "supertest";
 import type { ApiConfig } from "../src/config";
 import { createApp } from "../src/app";
+
+const describeApi = (await canListenOnLoopback()) ? describe : describe.skip;
 
 function testConfig(overrides: Partial<ApiConfig> = {}): ApiConfig {
   return {
@@ -36,7 +39,7 @@ function createTestApp(overrides: Partial<ApiConfig> = {}) {
   });
 }
 
-describe("OpenReturn API", () => {
+describeApi("OpenReturn API", () => {
   it("returns discovery metadata", async () => {
     const app = createTestApp();
     await request(app).get("/healthz").expect(200, { ok: true });
@@ -346,3 +349,17 @@ describe("OpenReturn API", () => {
     });
   });
 });
+
+async function canListenOnLoopback(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const server = createServer();
+    server.once("error", () => {
+      resolve(false);
+    });
+    server.listen(0, "127.0.0.1", () => {
+      server.close(() => {
+        resolve(true);
+      });
+    });
+  });
+}

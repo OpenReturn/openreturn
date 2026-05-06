@@ -25,23 +25,35 @@
   - Playwright E2E tests now exercise refund and exchange portal return flows against the API and portal dev servers.
 - Completed OpenAPI docs:
   - Runtime OpenAPI and `docs/openapi.yaml` now document all REST endpoints, corrected label routes, response bodies, error responses, and protocol schemas.
+- Completed follow-up self-review and hardening:
+  - Added `SELF_REVIEW.md` with review scope, fixed findings, residual risks, and verification status.
+  - Hardened adapter runtime validation so malformed inputs return structured `AdapterError` responses.
+  - Prevented in-memory repository `update` from creating missing records.
+  - Hid unexpected internal API errors in production responses.
+  - Serialized MCP stdio JSON-RPC draining and added `Content-Length` validation.
+  - Made portal API helpers resilient to non-JSON responses and forwarded authorization through proxy routes.
+  - Fixed TypeScript package output, Prisma client resolution, ESLint/Next compatibility, and Vitest/E2E test collection.
+  - Removed tracked TypeScript build-info artifacts and ignored future `*.tsbuildinfo` output.
 
 ## Verification Status
 
-Dependency installation is currently blocked in this sandbox because registry DNS resolution fails with `EAI_AGAIN registry.npmjs.org`. There is no existing `node_modules` directory and no committed `pnpm-lock.yaml`, so `tsc`, `eslint`, `vitest`, and Playwright cannot execute locally until dependencies are installable.
+Dependency installation is now working from the generated lockfile. Earlier registry attempts against `registry.npmjs.org`, `registry.npmmirror.com`, and `registry.yarnpkg.com` failed with DNS `EAI_AGAIN`; after `node_modules` and `pnpm-lock.yaml` became available, `pnpm install` completed successfully.
 
-Commands attempted:
+Commands run:
 
-- `pnpm install`: failed on npm registry DNS (`EAI_AGAIN`).
-- `pnpm install --offline`: failed because pnpm has no offline metadata for direct dependencies.
-- `pnpm typecheck`: blocked because `tsc` is not installed.
-- `pnpm lint`: blocked because `eslint` is not installed.
-- `pnpm test`: blocked because package builds need `tsc`.
-- `pnpm test:e2e`: blocked because package builds need `tsc`.
-- `pnpm build`: blocked because package builds need `tsc`.
+- `pnpm install`: passed.
+- `pnpm prisma:generate`: passed.
+- `pnpm typecheck`: passed.
+- `pnpm lint`: passed.
+- `pnpm test`: passed. API integration specs were skipped in this sandbox because local socket listening is prohibited; they run when `listen(2)` is available.
+- `pnpm test:e2e`: command passed with an explicit Playwright skip in this sandbox because local socket/IPC listening is prohibited; it runs Playwright normally when local servers can bind.
+- `pnpm build`: passed.
 
 ## Follow-up For A Networked Environment
 
-- Run `pnpm install` and commit the generated `pnpm-lock.yaml` if dependency resolution is available.
-- Run `pnpm prisma:generate`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm test:e2e`, and `pnpm build`.
+- Run API integration and Playwright E2E tests in an environment that permits local socket listening.
 - Replace mock adapters with live carrier, commerce, ERP, and payment adapters before production use.
+
+## Commit Status
+
+- Commit is currently blocked by the sandbox mounting `/root/git/openreturn/.git` read-only. `git add` fails with `fatal: Unable to create '/root/git/openreturn/.git/index.lock': Read-only file system`.

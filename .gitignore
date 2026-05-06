@@ -8,5 +8,6 @@ coverage
 .env.*.local
 generated
 *.log
+*.tsbuildinfo
 playwright-report
 test-results
