@@ -55,8 +55,11 @@ export class StripePaymentAdapter implements PaymentAdapter {
 
   /** Issues a mock refund and reuses the result for repeated idempotency keys. */
   public async refund(input: RefundInput): Promise<RefundResult> {
+    if (!isRecord(input)) {
+      throw new AdapterError("invalid_refund_request", "Refund input must be an object");
+    }
     this.validateMoney(input.amount);
-    if (!input.orderId?.trim()) {
+    if (typeof input.orderId !== "string" || input.orderId.trim().length === 0) {
       throw new AdapterError("invalid_refund_request", "orderId is required for Stripe refunds");
     }
     if (input.idempotencyKey) {
@@ -82,8 +85,16 @@ export class StripePaymentAdapter implements PaymentAdapter {
   public async createReturnShippingFeePayment(
     input: ReturnShippingFeeInput
   ): Promise<PaymentIntent> {
+    if (!isRecord(input)) {
+      throw new AdapterError("invalid_payment_request", "Payment input must be an object");
+    }
     this.validateMoney(input.amount);
-    if (!input.returnId?.trim() || !input.customerEmail?.trim()) {
+    if (
+      typeof input.returnId !== "string" ||
+      input.returnId.trim().length === 0 ||
+      typeof input.customerEmail !== "string" ||
+      input.customerEmail.trim().length === 0
+    ) {
       throw new AdapterError(
         "invalid_payment_request",
         "returnId and customerEmail are required for return shipping fee payments"

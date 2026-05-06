@@ -13,9 +13,9 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "declaration": true,
+    "composite": true,
     "declarationMap": true,
     "sourceMap": true,
-    "outDir": "dist",
-    "rootDir": "src"
+    "incremental": true
   }
 }

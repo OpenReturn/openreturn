@@ -48,7 +48,7 @@ export abstract class MockCarrierAdapter implements CarrierAdapter {
   private readonly labels = new Map<string, ShippingLabel>();
   private readonly cancelledLabels = new Set<string>();
 
-  protected constructor(private readonly config: CarrierAdapterConfig) {}
+  public constructor(private readonly config: CarrierAdapterConfig) {}
 
   /** Generates a mock label after validating credentials, service level, and request shape. */
   public async createLabel(input: CreateLabelInput): Promise<ShippingLabel> {

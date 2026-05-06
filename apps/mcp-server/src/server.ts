@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { OpenReturnApiClient } from "./api-client";
+import type { OpenReturnApiClient } from "./api-client";
 import type { JsonRpcRequest, JsonRpcResponse } from "./json-rpc";
 import { callTool, tools } from "./tools";
 

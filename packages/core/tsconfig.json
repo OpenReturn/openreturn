@@ -1,12 +1,24 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "composite": true
+    "rootDir": "src",
+    "composite": true,
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo",
+    "rootDir": "src"
   },
   "references": [
-    { "path": "../types" },
-    { "path": "../adapters" },
-    { "path": "../return-methods" }
+    {
+      "path": "../types"
+    },
+    {
+      "path": "../adapters"
+    },
+    {
+      "path": "../return-methods"
+    }
   ],
-  "include": ["src/**/*.ts"]
+  "include": [
+    "src/**/*.ts"
+  ]
 }

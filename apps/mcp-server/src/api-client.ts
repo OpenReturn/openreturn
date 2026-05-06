@@ -132,7 +132,7 @@ export class OpenReturnApiClient {
     options: { method?: string; body?: unknown } = {}
   ): Promise<T> {
     const headers: Record<string, string> = { accept: "application/json" };
-    if (options.body) {
+    if (options.body !== undefined) {
       headers["content-type"] = "application/json";
     }
     const token = await this.getAccessToken();
@@ -143,7 +143,7 @@ export class OpenReturnApiClient {
     const response = await fetch(`${this.apiBaseUrl}${path}`, {
       method: options.method ?? "GET",
       headers,
-      body: options.body ? JSON.stringify(options.body) : undefined
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined
     });
     const payload = await parseJsonResponse<T>(response);
     if (!response.ok) {

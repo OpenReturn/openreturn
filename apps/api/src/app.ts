@@ -61,7 +61,7 @@ function asyncHandler(handler: AsyncHandler) {
 }
 
 /** Creates the Express application with injectable service and adapter dependencies for tests. */
-export function createApp(dependencies: AppDependencies = {}) {
+export function createApp(dependencies: AppDependencies = {}): express.Express {
   const config = dependencies.config ?? loadConfig();
   const tokenService = new OAuthTokenService(config);
   const authGuard = (scope: string) =>

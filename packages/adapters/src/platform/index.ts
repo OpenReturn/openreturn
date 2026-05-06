@@ -35,14 +35,16 @@ export abstract class MockPlatformAdapter implements PlatformAdapter {
   private readonly refunds = new Map<string, RefundResult>();
   private readonly exchanges = new Map<string, ExchangeSelection>();
 
-  protected constructor(protected readonly config: PlatformAdapterConfig) {}
+  public constructor(protected readonly config: PlatformAdapterConfig) {}
 
   /** Looks up a mock order unless the id is empty or starts with MISSING. */
   public async lookupOrder(orderId: string, email = "customer@example.com"): Promise<Order | null> {
     if (!orderId || orderId.toUpperCase().startsWith("MISSING")) {
       return null;
     }
-    const normalizedEmail = email.toLowerCase();
+    const normalizedEmail = typeof email === "string" && email.trim().length > 0
+      ? email.toLowerCase()
+      : "customer@example.com";
     const itemSeed = orderId.replace(/[^a-z0-9]/gi, "").slice(-4) || "1001";
     return {
       id: orderId,
@@ -86,7 +88,7 @@ export abstract class MockPlatformAdapter implements PlatformAdapter {
 
   /** Creates or returns an idempotent mock return authorization for an order. */
   public async createReturnAuthorization(orderId: string, items: ReturnItem[]): Promise<string> {
-    if (!orderId?.trim()) {
+    if (typeof orderId !== "string" || orderId.trim().length === 0) {
       throw new AdapterError("invalid_authorization_request", "orderId is required to create a return authorization");
     }
     if (!Array.isArray(items) || items.length === 0) {
@@ -106,7 +108,7 @@ export abstract class MockPlatformAdapter implements PlatformAdapter {
 
   /** Records that the platform order was marked as refunded. */
   public async markRefunded(orderId: string, refund: RefundResult): Promise<void> {
-    if (!orderId?.trim()) {
+    if (typeof orderId !== "string" || orderId.trim().length === 0) {
       throw new AdapterError("invalid_refund_sync", "orderId is required to mark a refund");
     }
     this.refunds.set(orderId, refund);
@@ -117,7 +119,7 @@ export abstract class MockPlatformAdapter implements PlatformAdapter {
     orderId: string,
     exchange: ExchangeSelection
   ): Promise<void> {
-    if (!orderId?.trim()) {
+    if (typeof orderId !== "string" || orderId.trim().length === 0) {
       throw new AdapterError("invalid_exchange_sync", "orderId is required to mark an exchange");
     }
     this.exchanges.set(orderId, exchange);
@@ -133,24 +135,40 @@ export abstract class MockPlatformAdapter implements PlatformAdapter {
 export class ShopifyPlatformAdapter extends MockPlatformAdapter {
   public readonly code = "shopify";
   public readonly name = "Shopify";
+
+  public constructor(config: PlatformAdapterConfig) {
+    super(config);
+  }
 }
 
 /** WooCommerce mock platform implementation. */
 export class WooCommercePlatformAdapter extends MockPlatformAdapter {
   public readonly code = "woocommerce";
   public readonly name = "WooCommerce";
+
+  public constructor(config: PlatformAdapterConfig) {
+    super(config);
+  }
 }
 
 /** Magento mock platform implementation. */
 export class MagentoPlatformAdapter extends MockPlatformAdapter {
   public readonly code = "magento";
   public readonly name = "Magento";
+
+  public constructor(config: PlatformAdapterConfig) {
+    super(config);
+  }
 }
 
 /** BigCommerce mock platform implementation. */
 export class BigCommercePlatformAdapter extends MockPlatformAdapter {
   public readonly code = "bigcommerce";
   public readonly name = "BigCommerce";
+
+  public constructor(config: PlatformAdapterConfig) {
+    super(config);
+  }
 }
 
 /** Creates every built-in mock platform adapter with shared configuration. */
