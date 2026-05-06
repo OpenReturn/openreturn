@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ReturnRecord {
+  id                  String              @id
+  orderId             String
+  externalOrderId     String?
+  customerEmail       String
+  status              String
+  labelTrackingNumber String?
+  data                Json
+  createdAt           DateTime
+  updatedAt           DateTime
+  events              ReturnEventRecord[]
+
+  @@index([customerEmail])
+  @@index([status])
+  @@index([labelTrackingNumber])
+}
+
+model ReturnEventRecord {
+  id        String       @id
+  returnId  String
+  type      String
+  state     String
+  message   String
+  actor     String?
+  data      Json?
+  createdAt DateTime
+  return    ReturnRecord @relation(fields: [returnId], references: [id], onDelete: Cascade)
+
+  @@index([returnId])
+  @@index([type])
+}

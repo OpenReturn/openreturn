@@ -1,0 +1,19 @@
+{
+  "name": "@openreturn/types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared OpenReturn protocol types",
+  "license": "Apache-2.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:coverage": "vitest run --coverage --passWithNoTests"
+  },
+  "devDependencies": {
+    "vitest": "^3.1.1"
+  }
+}

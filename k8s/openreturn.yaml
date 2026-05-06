@@ -1,0 +1,212 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openreturn
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: openreturn-secrets
+  namespace: openreturn
+type: Opaque
+stringData:
+  DATABASE_URL: postgresql://openreturn:openreturn@postgres:5432/openreturn?schema=public
+  OAUTH_TOKEN_SECRET: replace-with-at-least-32-characters
+  POSTGRES_PASSWORD: openreturn
+  SMTP_USER: ""
+  SMTP_PASS: ""
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: openreturn
+spec:
+  selector:
+    app: openreturn-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: openreturn
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openreturn-postgres
+  template:
+    metadata:
+      labels:
+        app: openreturn-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: openreturn
+            - name: POSTGRES_USER
+              value: openreturn
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: openreturn-secrets
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openreturn-config
+  namespace: openreturn
+data:
+  NODE_ENV: production
+  OPENRETURN_API_BASE_URL: https://returns.example.com
+  OPENRETURN_PORTAL_BASE_URL: https://portal.example.com
+  OPENRETURN_MCP_URL: https://mcp.example.com/mcp
+  OAUTH_ISSUER: https://returns.example.com
+  OAUTH_AUDIENCE: openreturn-api
+  OPENRETURN_REQUIRE_AUTH: "true"
+  SMTP_HOST: smtp.example.com
+  SMTP_PORT: "587"
+  SMTP_FROM: returns@example.com
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: openreturn
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: openreturn-api
+  template:
+    metadata:
+      labels:
+        app: openreturn-api
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/openreturn/openreturn-api:latest
+          ports:
+            - containerPort: 4000
+          envFrom:
+            - configMapRef:
+                name: openreturn-config
+            - secretRef:
+                name: openreturn-secrets
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 4000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: openreturn
+spec:
+  selector:
+    app: openreturn-api
+  ports:
+    - port: 4000
+      targetPort: 4000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal
+  namespace: openreturn
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: openreturn-portal
+  template:
+    metadata:
+      labels:
+        app: openreturn-portal
+    spec:
+      containers:
+        - name: portal
+          image: ghcr.io/openreturn/openreturn-portal:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: OPENRETURN_API_BASE_URL
+              value: http://api.openreturn.svc.cluster.local:4000
+            - name: NEXT_PUBLIC_OPENRETURN_API_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: openreturn-config
+                  key: OPENRETURN_API_BASE_URL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: portal
+  namespace: openreturn
+spec:
+  selector:
+    app: openreturn-portal
+  ports:
+    - port: 3000
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-server
+  namespace: openreturn
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openreturn-mcp
+  template:
+    metadata:
+      labels:
+        app: openreturn-mcp
+    spec:
+      containers:
+        - name: mcp-server
+          image: ghcr.io/openreturn/openreturn-mcp-server:latest
+          ports:
+            - containerPort: 4100
+          env:
+            - name: OPENRETURN_API_BASE_URL
+              value: http://api.openreturn.svc.cluster.local:4000
+            - name: MCP_HTTP_PORT
+              value: "4100"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-server
+  namespace: openreturn
+spec:
+  selector:
+    app: openreturn-mcp
+  ports:
+    - port: 4100
+      targetPort: 4100

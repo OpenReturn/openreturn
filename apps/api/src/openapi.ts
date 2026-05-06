@@ -1,0 +1,242 @@
+export const openApiDocument = {
+  openapi: "3.1.0",
+  info: {
+    title: "OpenReturn API",
+    version: "0.1.0",
+    description: "Reference REST API for the OpenReturn protocol."
+  },
+  servers: [{ url: "http://localhost:4000" }],
+  security: [{ bearerAuth: [] }],
+  paths: {
+    "/.well-known/openreturn": {
+      get: {
+        summary: "Discover OpenReturn capabilities",
+        responses: { "200": { description: "Discovery document" } }
+      }
+    },
+    "/oauth/token": {
+      post: {
+        summary: "Issue OAuth 2.1 client credentials token",
+        responses: { "200": { description: "Token response" } }
+      }
+    },
+    "/oauth/delegate": {
+      post: {
+        summary: "Exchange a subject token for a delegated agent token",
+        responses: { "200": { description: "Delegated token response" } }
+      }
+    },
+    "/orders/{id}": {
+      get: {
+        summary: "Lookup order through the configured platform adapter",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        responses: { "200": { description: "Order" }, "404": { description: "Not found" } }
+      }
+    },
+    "/returns": {
+      get: {
+        summary: "List returns",
+        responses: { "200": { description: "Return list" } }
+      },
+      post: {
+        summary: "Initiate return request",
+        responses: { "201": { description: "Return created" } }
+      }
+    },
+    "/returns/{id}": {
+      get: {
+        summary: "Get return status",
+        responses: { "200": { description: "Return" }, "404": { description: "Not found" } }
+      },
+      put: {
+        summary: "Update return",
+        responses: { "200": { description: "Updated return" } }
+      }
+    },
+    "/returns/{id}/exchange": {
+      post: {
+        summary: "Select exchange products",
+        responses: { "200": { description: "Updated return" } }
+      }
+    },
+    "/returns/{id}/carrier": {
+      post: {
+        summary: "Select carrier and generate label",
+        responses: { "200": { description: "Updated return with label" } }
+      }
+    },
+    "/returns/{id}/label": {
+      get: {
+        summary: "Get shipping label",
+        responses: { "200": { description: "Shipping label" } }
+      }
+    },
+    "/returns/{id}/track": {
+      post: {
+        summary: "Add tracking update",
+        responses: { "200": { description: "Updated return" } }
+      }
+    },
+    "/returns/{id}/events": {
+      get: {
+        summary: "Get return event history",
+        responses: { "200": { description: "Return events" } }
+      }
+    },
+    "/webhooks": {
+      post: {
+        summary: "Receive webhook events",
+        responses: { "202": { description: "Webhook accepted" } }
+      }
+    }
+  },
+  components: {
+    securitySchemes: {
+      bearerAuth: {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT"
+      }
+    },
+    schemas: {
+      ReturnState: {
+        type: "string",
+        enum: [
+          "initiated",
+          "label_generated",
+          "shipped",
+          "in_transit",
+          "delivered",
+          "inspection",
+          "approved",
+          "rejected",
+          "refunded",
+          "exchanged",
+          "completed"
+        ]
+      },
+      ResolutionType: {
+        type: "string",
+        enum: ["refund", "exchange", "store_credit", "coupon_code"]
+      },
+      ReasonCode: {
+        type: "string",
+        enum: [
+          "defect",
+          "size",
+          "not_as_described",
+          "wrong_item",
+          "arrived_late",
+          "damaged_in_transit",
+          "duplicate_order",
+          "changed_mind",
+          "unwanted",
+          "other"
+        ]
+      },
+      Customer: {
+        type: "object",
+        required: ["email"],
+        properties: {
+          id: { type: "string" },
+          email: { type: "string", format: "email" },
+          name: { type: "string" },
+          phone: { type: "string" }
+        }
+      },
+      ReturnReason: {
+        type: "object",
+        required: ["code"],
+        properties: {
+          code: { $ref: "#/components/schemas/ReasonCode" },
+          note: { type: "string" },
+          evidenceUrls: { type: "array", items: { type: "string", format: "uri" } }
+        }
+      },
+      ReturnItem: {
+        type: "object",
+        required: ["orderItemId", "sku", "name", "quantity", "reason"],
+        properties: {
+          orderItemId: { type: "string" },
+          sku: { type: "string" },
+          name: { type: "string" },
+          quantity: { type: "integer", minimum: 1 },
+          reason: { $ref: "#/components/schemas/ReturnReason" },
+          condition: {
+            type: "string",
+            enum: ["unopened", "new", "used", "defective", "damaged"]
+          }
+        }
+      },
+      InitiateReturnRequest: {
+        type: "object",
+        required: ["orderId", "customer", "items", "requestedResolution"],
+        properties: {
+          orderId: { type: "string" },
+          externalOrderId: { type: "string" },
+          customer: { $ref: "#/components/schemas/Customer" },
+          items: { type: "array", items: { $ref: "#/components/schemas/ReturnItem" } },
+          requestedResolution: { $ref: "#/components/schemas/ResolutionType" },
+          returnMethod: { type: "string" },
+          metadata: { type: "object", additionalProperties: true }
+        }
+      },
+      ShippingLabel: {
+        type: "object",
+        required: ["id", "carrier", "trackingNumber", "labelUrl", "format", "expiresAt", "createdAt"],
+        properties: {
+          id: { type: "string" },
+          carrier: { type: "string" },
+          trackingNumber: { type: "string" },
+          labelUrl: { type: "string", format: "uri" },
+          format: { type: "string", enum: ["pdf", "png", "zpl"] },
+          expiresAt: { type: "string", format: "date-time" },
+          createdAt: { type: "string", format: "date-time" }
+        }
+      },
+      OpenReturnRecord: {
+        type: "object",
+        required: [
+          "id",
+          "orderId",
+          "customer",
+          "status",
+          "requestedResolution",
+          "reasonCodes",
+          "items",
+          "returnMethod",
+          "tracking",
+          "events",
+          "createdAt",
+          "updatedAt"
+        ],
+        properties: {
+          id: { type: "string" },
+          orderId: { type: "string" },
+          customer: { $ref: "#/components/schemas/Customer" },
+          status: { $ref: "#/components/schemas/ReturnState" },
+          requestedResolution: { $ref: "#/components/schemas/ResolutionType" },
+          reasonCodes: { type: "array", items: { $ref: "#/components/schemas/ReasonCode" } },
+          items: { type: "array", items: { $ref: "#/components/schemas/ReturnItem" } },
+          returnMethod: { type: "string" },
+          label: { $ref: "#/components/schemas/ShippingLabel" }
+        }
+      },
+      Error: {
+        type: "object",
+        required: ["error"],
+        properties: {
+          error: {
+            type: "object",
+            required: ["code", "message"],
+            properties: {
+              code: { type: "string" },
+              message: { type: "string" },
+              details: {}
+            }
+          }
+        }
+      }
+    }
+  }
+};

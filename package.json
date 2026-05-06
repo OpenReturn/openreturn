@@ -1,0 +1,40 @@
+{
+  "name": "openreturn",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpenReturn reference implementation monorepo",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20.11.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm -r --filter './packages/*' build && pnpm --parallel --filter @openreturn/api --filter @openreturn/portal dev",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "pnpm -r --filter './packages/*' build && pnpm -r test",
+    "test:coverage": "pnpm -r --filter './packages/*' build && pnpm -r test:coverage",
+    "test:e2e": "pnpm -r --filter './packages/*' build && pnpm --filter @openreturn/portal test:e2e",
+    "typecheck": "pnpm -r --filter './packages/*' build && pnpm -r typecheck",
+    "prisma:generate": "pnpm --filter @openreturn/api prisma:generate",
+    "prisma:migrate": "pnpm --filter @openreturn/api prisma:migrate"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.24.0",
+    "@next/eslint-plugin-next": "^14.2.28",
+    "@playwright/test": "^1.51.1",
+    "@types/node": "^22.14.0",
+    "@typescript-eslint/eslint-plugin": "^8.29.0",
+    "@typescript-eslint/parser": "^8.29.0",
+    "eslint": "^9.24.0",
+    "eslint-config-next": "^14.2.28",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.29.0",
+    "@vitest/coverage-v8": "^3.1.1",
+    "vitest": "^3.1.1"
+  }
+}
