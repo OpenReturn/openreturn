@@ -465,7 +465,13 @@ export function assertInitiateReturnRequest(
   optionalString(value, "externalOrderId", "$.externalOrderId", issues);
   validateCustomer(value.customer, "$.customer", issues);
   validateReturnItems(value.items, "$.items", issues);
-  validateEnum(value.requestedResolution, "$.requestedResolution", "resolution type", isResolutionType, issues);
+  validateEnum(
+    value.requestedResolution,
+    "$.requestedResolution",
+    "resolution type",
+    isResolutionType,
+    issues
+  );
   optionalString(value, "returnMethod", "$.returnMethod", issues);
   optionalRecord(value, "metadata", "$.metadata", issues);
   throwIfIssues("Invalid initiate return request", issues);
@@ -695,11 +701,7 @@ function validateEnum<T extends string>(
   }
 }
 
-function validateCustomer(
-  value: unknown,
-  path: string,
-  issues: ProtocolValidationIssue[]
-): void {
+function validateCustomer(value: unknown, path: string, issues: ProtocolValidationIssue[]): void {
   if (!isRecord(value)) {
     issues.push({ path, message: "Expected object" });
     return;
@@ -713,11 +715,7 @@ function validateCustomer(
   }
 }
 
-function validateAddress(
-  value: unknown,
-  path: string,
-  issues: ProtocolValidationIssue[]
-): void {
+function validateAddress(value: unknown, path: string, issues: ProtocolValidationIssue[]): void {
   if (!isRecord(value)) {
     issues.push({ path, message: "Expected object" });
     return;
@@ -745,11 +743,7 @@ function validateReturnItems(
   });
 }
 
-function validateReturnItem(
-  value: unknown,
-  path: string,
-  issues: ProtocolValidationIssue[]
-): void {
+function validateReturnItem(value: unknown, path: string, issues: ProtocolValidationIssue[]): void {
   if (!isRecord(value)) {
     issues.push({ path, message: "Expected object" });
     return;
@@ -762,7 +756,13 @@ function validateReturnItem(
   }
   validateReturnReason(value.reason, `${path}.reason`, issues);
   if ("condition" in value && value.condition !== undefined) {
-    validateEnum(value.condition, `${path}.condition`, "return item condition", isReturnItemCondition, issues);
+    validateEnum(
+      value.condition,
+      `${path}.condition`,
+      "return item condition",
+      isReturnItemCondition,
+      issues
+    );
   }
 }
 
@@ -778,7 +778,10 @@ function validateReturnReason(
   validateEnum(value.code, `${path}.code`, "return reason code", isReturnReasonCode, issues);
   optionalString(value, "note", `${path}.note`, issues);
   if ("evidenceUrls" in value && value.evidenceUrls !== undefined) {
-    if (!Array.isArray(value.evidenceUrls) || value.evidenceUrls.some((url) => typeof url !== "string")) {
+    if (
+      !Array.isArray(value.evidenceUrls) ||
+      value.evidenceUrls.some((url) => typeof url !== "string")
+    ) {
       issues.push({ path: `${path}.evidenceUrls`, message: "Expected array of strings" });
     }
   }
@@ -887,18 +890,17 @@ function validateCouponCodeResult(
       value.percentage <= 0 ||
       value.percentage > 100
     ) {
-      issues.push({ path: `${path}.percentage`, message: "Expected number greater than 0 and at most 100" });
+      issues.push({
+        path: `${path}.percentage`,
+        message: "Expected number greater than 0 and at most 100"
+      });
     }
   }
   optionalString(value, "expiresAt", `${path}.expiresAt`, issues);
   requireNonEmptyString(value, "issuedAt", `${path}.issuedAt`, issues);
 }
 
-function validateMoney(
-  value: unknown,
-  path: string,
-  issues: ProtocolValidationIssue[]
-): void {
+function validateMoney(value: unknown, path: string, issues: ProtocolValidationIssue[]): void {
   if (!isRecord(value)) {
     issues.push({ path, message: "Expected object" });
     return;

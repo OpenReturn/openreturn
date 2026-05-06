@@ -93,10 +93,19 @@ describeApi("OpenReturn API", () => {
       .expect(200);
     const labelUrl = new URL(labeled.body.return.label.labelUrl as string);
     const labelPath = `${labelUrl.pathname}`;
-    await request(app).get(labelPath).expect(200).expect("content-type", /application\/pdf/);
+    await request(app)
+      .get(labelPath)
+      .expect(200)
+      .expect("content-type", /application\/pdf/);
     await request(app).get(`/returns/${id}/label`).expect(200);
-    const tracked = await request(app).post(`/returns/${id}/track`).send({ status: "accepted" }).expect(200);
-    const listed = await request(app).get("/returns").query({ status: "shipped", limit: 10 }).expect(200);
+    const tracked = await request(app)
+      .post(`/returns/${id}/track`)
+      .send({ status: "accepted" })
+      .expect(200);
+    const listed = await request(app)
+      .get("/returns")
+      .query({ status: "shipped", limit: 10 })
+      .expect(200);
     const events = await request(app).get(`/returns/${id}/events`).expect(200);
 
     expect(tracked.body.return.status).toBe("shipped");
@@ -162,7 +171,10 @@ describeApi("OpenReturn API", () => {
         }
       })
       .expect(200);
-    const completed = await request(app).put(`/returns/${id}`).send({ status: "completed" }).expect(200);
+    const completed = await request(app)
+      .put(`/returns/${id}`)
+      .send({ status: "completed" })
+      .expect(200);
 
     expect(completed.body.return.status).toBe("completed");
   });
@@ -195,10 +207,22 @@ describeApi("OpenReturn API", () => {
       })
       .expect(201);
 
-    await request(app).put(`/returns/${storeCredit.body.return.id}`).send({ status: "approved" }).expect(200);
-    await request(app).put(`/returns/${coupon.body.return.id}`).send({ status: "approved" }).expect(200);
-    await request(app).put(`/returns/${storeCredit.body.return.id}`).send({ status: "completed" }).expect(400);
-    await request(app).put(`/returns/${coupon.body.return.id}`).send({ status: "completed" }).expect(400);
+    await request(app)
+      .put(`/returns/${storeCredit.body.return.id}`)
+      .send({ status: "approved" })
+      .expect(200);
+    await request(app)
+      .put(`/returns/${coupon.body.return.id}`)
+      .send({ status: "approved" })
+      .expect(200);
+    await request(app)
+      .put(`/returns/${storeCredit.body.return.id}`)
+      .send({ status: "completed" })
+      .expect(400);
+    await request(app)
+      .put(`/returns/${coupon.body.return.id}`)
+      .send({ status: "completed" })
+      .expect(400);
 
     await request(app)
       .put(`/returns/${storeCredit.body.return.id}`)
@@ -294,7 +318,10 @@ describeApi("OpenReturn API", () => {
 
   it("issues and delegates OAuth tokens", async () => {
     const app = createTestApp();
-    const subject = await request(app).post("/oauth/token").send({ client_id: "consumer" }).expect(200);
+    const subject = await request(app)
+      .post("/oauth/token")
+      .send({ client_id: "consumer" })
+      .expect(200);
     const agent = await request(app)
       .post("/oauth/token")
       .send({ client_id: "agent", scope: "agent:delegate returns:read" })
@@ -307,6 +334,25 @@ describeApi("OpenReturn API", () => {
 
     expect(delegated.body.access_token).toEqual(expect.any(String));
     expect(delegated.body.delegated_subject).toBe("consumer");
+  });
+
+  it("rejects invalid delegated subject tokens without leaking an internal error", async () => {
+    const app = createTestApp();
+    const agent = await request(app)
+      .post("/oauth/token")
+      .send({ client_id: "agent", scope: "agent:delegate returns:read" })
+      .expect(200);
+
+    const rejected = await request(app)
+      .post("/oauth/delegate")
+      .set("authorization", `Bearer ${agent.body.access_token}`)
+      .send({ subjectToken: "not-a-jwt", actor: "agent", scope: "returns:read" })
+      .expect(401);
+
+    expect(rejected.body.error).toEqual({
+      code: "invalid_subject_token",
+      message: "subjectToken is invalid or expired"
+    });
   });
 
   it("accepts unmatched webhooks and reports missing platform adapters", async () => {

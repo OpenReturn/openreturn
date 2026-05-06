@@ -40,7 +40,12 @@ import {
 } from "@openreturn/return-methods";
 import type { ApiConfig } from "./config";
 import { carrierApiKey, loadConfig } from "./config";
-import { OAuthTokenService, optionalAuth, requireAuth, type AuthenticatedRequest } from "./auth/tokens";
+import {
+  OAuthTokenService,
+  optionalAuth,
+  requireAuth,
+  type AuthenticatedRequest
+} from "./auth/tokens";
 import { PrismaReturnRepository } from "./db/prisma-repository";
 import { SmtpNotificationDispatcher } from "./notifications/smtp";
 import { openApiDocument } from "./openapi";
@@ -79,7 +84,8 @@ export function createApp(dependencies: AppDependencies = {}): express.Express {
     labelBaseUrl: `${config.apiBaseUrl}/labels`
   });
   const platformAdapters =
-    dependencies.platformAdapters ?? createMockPlatformAdapters({ apiKey: config.adapters.platformApiKey });
+    dependencies.platformAdapters ??
+    createMockPlatformAdapters({ apiKey: config.adapters.platformApiKey });
   const genericAdapters =
     dependencies.genericAdapters ??
     createMockGenericCommerceAdapters({ apiKey: config.adapters.genericCommerceApiKey });
@@ -176,14 +182,19 @@ export function createApp(dependencies: AppDependencies = {}): express.Express {
       issuer: config.oauthIssuer,
       token_endpoint: `${config.apiBaseUrl}/oauth/token`,
       token_endpoint_auth_methods_supported: ["client_secret_post", "none"],
-      grant_types_supported: ["client_credentials", "urn:ietf:params:oauth:grant-type:token-exchange"],
+      grant_types_supported: [
+        "client_credentials",
+        "urn:ietf:params:oauth:grant-type:token-exchange"
+      ],
       scopes_supported: ["returns:read", "returns:write", "returns:track", "agent:delegate"]
     });
   });
 
   app.post("/oauth/token", (request, response) => {
     const clientId = String(request.body.client_id ?? "reference-client");
-    const scope = String(request.body.scope ?? "returns:read returns:write returns:track agent:delegate");
+    const scope = String(
+      request.body.scope ?? "returns:read returns:write returns:track agent:delegate"
+    );
     response.json(tokenService.issueClientToken(clientId, scope));
   });
 
@@ -199,13 +210,20 @@ export function createApp(dependencies: AppDependencies = {}): express.Express {
         audience: body.audience
       };
       assertTokenDelegationRequest(delegationRequest);
-      const subject = tokenService.verify(delegationRequest.subjectToken);
+      let subject: ReturnType<OAuthTokenService["verify"]>;
+      try {
+        subject = tokenService.verify(delegationRequest.subjectToken);
+      } catch {
+        response.status(401).json({
+          error: {
+            code: "invalid_subject_token",
+            message: "subjectToken is invalid or expired"
+          }
+        });
+        return;
+      }
       response.json(
-        tokenService.issueDelegatedToken(
-          subject,
-          delegationRequest.actor,
-          delegationRequest.scope
-        )
+        tokenService.issueDelegatedToken(subject, delegationRequest.actor, delegationRequest.scope)
       );
     }
   );
@@ -216,7 +234,9 @@ export function createApp(dependencies: AppDependencies = {}): express.Express {
     asyncHandler(async (request, response) => {
       const adapter = platformAdapters[0] ?? genericAdapters[0];
       if (!adapter) {
-        response.status(503).json({ error: { code: "no_platform_adapter", message: "No adapter configured" } });
+        response
+          .status(503)
+          .json({ error: { code: "no_platform_adapter", message: "No adapter configured" } });
         return;
       }
       const order = await adapter.lookupOrder(request.params.id, request.query.email?.toString());

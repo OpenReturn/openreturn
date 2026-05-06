@@ -70,7 +70,7 @@ Setup:
 
 ```bash
 cp .env.example .env
-pnpm install --no-frozen-lockfile
+pnpm install
 pnpm prisma:generate
 ```
 

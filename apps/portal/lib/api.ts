@@ -1,8 +1,9 @@
 /** Server-side API base URL used by portal server components. */
-export const apiBaseUrl =
+export const apiBaseUrl = (
   process.env.OPENRETURN_API_BASE_URL ??
   process.env.NEXT_PUBLIC_OPENRETURN_API_BASE_URL ??
-  "http://localhost:4000";
+  "http://localhost:4000"
+).replace(/\/$/, "");
 
 /** Fetches JSON from the OpenReturn API and raises readable structured errors. */
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {

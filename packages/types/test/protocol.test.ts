@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   assertAddTrackingRequest,
   assertInitiateReturnRequest,
+  assertListReturnsRequest,
+  assertSelectCarrierRequest,
+  assertSelectExchangeRequest,
+  assertTokenDelegationRequest,
   assertUpdateReturnRequest,
+  assertWebhookEvent,
   CARRIER_CODES,
   ProtocolValidationError,
   RESOLUTION_TYPES,
@@ -92,6 +97,38 @@ describe("OpenReturn protocol constants", () => {
   it("validates tracking statuses", () => {
     expect(() => assertAddTrackingRequest({ status: "accepted" })).not.toThrow();
     expect(() => assertAddTrackingRequest({ status: "waiting" })).toThrow(ProtocolValidationError);
+  });
+
+  it("validates list, exchange, carrier, webhook, and delegation request boundaries", () => {
+    expect(() => assertListReturnsRequest({ status: "approved", limit: 25 })).not.toThrow();
+    expect(() => assertListReturnsRequest({ limit: 501 })).toThrow(ProtocolValidationError);
+    expect(() =>
+      assertSelectExchangeRequest({
+        requestedItems: [
+          {
+            originalOrderItemId: "line_1",
+            replacementSku: "SKU-L",
+            replacementName: "Item large",
+            quantity: 1
+          }
+        ]
+      })
+    ).not.toThrow();
+    expect(() => assertSelectExchangeRequest({ requestedItems: [] })).toThrow(
+      ProtocolValidationError
+    );
+    expect(() => assertSelectCarrierRequest({ carrier: "postnl" })).not.toThrow();
+    expect(() => assertSelectCarrierRequest({ carrier: "" })).toThrow(ProtocolValidationError);
+    expect(() =>
+      assertWebhookEvent({ source: "postnl", type: "parcel.accepted", data: {} })
+    ).not.toThrow();
+    expect(() =>
+      assertTokenDelegationRequest({
+        subjectToken: "token",
+        actor: "agent",
+        scope: "returns:read"
+      })
+    ).not.toThrow();
   });
 
   it("rejects empty update requests", () => {

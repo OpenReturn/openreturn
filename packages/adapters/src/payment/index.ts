@@ -55,6 +55,7 @@ export class StripePaymentAdapter implements PaymentAdapter {
 
   /** Issues a mock refund and reuses the result for repeated idempotency keys. */
   public async refund(input: RefundInput): Promise<RefundResult> {
+    this.assertConfigured();
     if (!isRecord(input)) {
       throw new AdapterError("invalid_refund_request", "Refund input must be an object");
     }
@@ -85,6 +86,7 @@ export class StripePaymentAdapter implements PaymentAdapter {
   public async createReturnShippingFeePayment(
     input: ReturnShippingFeeInput
   ): Promise<PaymentIntent> {
+    this.assertConfigured();
     if (!isRecord(input)) {
       throw new AdapterError("invalid_payment_request", "Payment input must be an object");
     }
@@ -115,6 +117,7 @@ export class StripePaymentAdapter implements PaymentAdapter {
 
   /** Cancels an existing mock payment intent. */
   public async cancelPaymentIntent(id: string): Promise<void> {
+    this.assertConfigured();
     const intent = this.paymentIntents.get(id);
     if (!intent) {
       throw new AdapterError("payment_intent_not_found", `Stripe payment intent not found: ${id}`);
@@ -130,7 +133,16 @@ export class StripePaymentAdapter implements PaymentAdapter {
       throw new AdapterError("invalid_money", "amount.amount must be an integer greater than zero");
     }
     if (typeof amount.currency !== "string" || !/^[A-Z]{3}$/.test(amount.currency)) {
-      throw new AdapterError("invalid_money", "amount.currency must be a 3-letter ISO currency code");
+      throw new AdapterError(
+        "invalid_money",
+        "amount.currency must be a 3-letter ISO currency code"
+      );
+    }
+  }
+
+  private assertConfigured(): void {
+    if (!this.config.apiKey) {
+      throw new AdapterError("missing_api_key", `${this.name} API key is required`);
     }
   }
 }

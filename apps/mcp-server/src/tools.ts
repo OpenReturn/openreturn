@@ -68,7 +68,8 @@ export const tools: McpToolDefinition[] = [
   },
   {
     name: "lookup_order",
-    description: "Lookup an order through the configured commerce adapter before initiating a return.",
+    description:
+      "Lookup an order through the configured commerce adapter before initiating a return.",
     inputSchema: {
       type: "object",
       required: ["orderId"],
@@ -81,7 +82,8 @@ export const tools: McpToolDefinition[] = [
   },
   {
     name: "list_returns",
-    description: "List OpenReturn records, optionally filtered by status, customer email, and limit.",
+    description:
+      "List OpenReturn records, optionally filtered by status, customer email, and limit.",
     inputSchema: {
       type: "object",
       properties: {
@@ -128,7 +130,8 @@ export const tools: McpToolDefinition[] = [
   },
   {
     name: "update_return",
-    description: "Move a return through allowed lifecycle states or attach inspection/resolution data.",
+    description:
+      "Move a return through allowed lifecycle states or attach inspection/resolution data.",
     inputSchema: {
       type: "object",
       required: ["id"],

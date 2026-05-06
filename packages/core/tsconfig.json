@@ -4,8 +4,7 @@
     "rootDir": "src",
     "composite": true,
     "outDir": "dist",
-    "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo",
-    "rootDir": "src"
+    "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo"
   },
   "references": [
     {
@@ -18,7 +17,5 @@
       "path": "../return-methods"
     }
   ],
-  "include": [
-    "src/**/*.ts"
-  ]
+  "include": ["src/**/*.ts"]
 }

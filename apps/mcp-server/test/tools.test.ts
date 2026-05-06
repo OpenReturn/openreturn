@@ -36,11 +36,15 @@ describe("MCP tools", () => {
       getReturnStatus: vi.fn().mockResolvedValue({ return: { id: "ret_1" } })
     };
 
-    await expect(callTool(client as unknown as OpenReturnApiClient, "get_return_status", { id: "ret_1" })).resolves.toEqual({
+    await expect(
+      callTool(client as unknown as OpenReturnApiClient, "get_return_status", { id: "ret_1" })
+    ).resolves.toEqual({
       return: { id: "ret_1" }
     });
     expect(client.getReturnStatus).toHaveBeenCalledWith("ret_1");
-    await expect(callTool(client as unknown as OpenReturnApiClient, "discover_openreturn", {})).resolves.toEqual({
+    await expect(
+      callTool(client as unknown as OpenReturnApiClient, "discover_openreturn", {})
+    ).resolves.toEqual({
       protocol: "openreturn"
     });
     await expect(

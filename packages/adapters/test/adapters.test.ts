@@ -93,7 +93,9 @@ describe("adapter implementations", () => {
         items: undefined
       } as never)
     ).rejects.toThrow(AdapterError);
-    await expect(platform!.createReturnAuthorization("ORDER-1", undefined as never)).rejects.toThrow(AdapterError);
+    await expect(
+      platform!.createReturnAuthorization("ORDER-1", undefined as never)
+    ).rejects.toThrow(AdapterError);
     await expect(generic!.syncReturnStatus("ret_1", "")).rejects.toThrow(AdapterError);
     await expect(
       stripe.refund({
@@ -113,6 +115,22 @@ describe("adapter implementations", () => {
     expect(await generic?.lookupOrder("ORDER-2", "b@example.com")).toMatchObject({
       id: "ORDER-2"
     });
+  });
+
+  it("requires configured credentials for commerce and payment adapters", async () => {
+    const [platform] = createMockPlatformAdapters({ apiKey: "" });
+    const [generic] = createMockGenericCommerceAdapters({ apiKey: "" });
+    const stripe = new StripePaymentAdapter({ apiKey: "" });
+
+    await expect(platform!.lookupOrder("ORDER-1")).rejects.toThrow(AdapterError);
+    await expect(generic!.lookupOrder("ORDER-1")).rejects.toThrow(AdapterError);
+    await expect(
+      stripe.createReturnShippingFeePayment({
+        returnId: "ret_1",
+        customerEmail: "customer@example.com",
+        amount: { amount: 499, currency: "EUR" }
+      })
+    ).rejects.toThrow(AdapterError);
   });
 
   it("processes mock Stripe refunds", async () => {

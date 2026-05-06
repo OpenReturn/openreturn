@@ -85,7 +85,9 @@ export function ReturnFlow() {
     setBusy(true);
     setError("");
     try {
-      const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}?email=${encodeURIComponent(email)}`);
+      const response = await fetch(
+        `/api/orders/${encodeURIComponent(orderId)}?email=${encodeURIComponent(email)}`
+      );
       const payload = (await response.json()) as { order?: Order; error?: { message: string } };
       if (!response.ok || !payload.order) {
         throw new Error(payload.error?.message ?? "Order lookup failed");
@@ -129,7 +131,10 @@ export function ReturnFlow() {
           }))
         })
       });
-      const payload = (await response.json()) as { return?: OpenReturnRecord; error?: { message: string } };
+      const payload = (await response.json()) as {
+        return?: OpenReturnRecord;
+        error?: { message: string };
+      };
       if (!response.ok || !payload.return) {
         throw new Error(payload.error?.message ?? "Return initiation failed");
       }
@@ -176,7 +181,10 @@ export function ReturnFlow() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body)
       });
-      const payload = (await response.json()) as { return?: OpenReturnRecord; error?: { message: string } };
+      const payload = (await response.json()) as {
+        return?: OpenReturnRecord;
+        error?: { message: string };
+      };
       if (!response.ok || !payload.return) {
         throw new Error(payload.error?.message ?? "Return update failed");
       }
@@ -194,13 +202,17 @@ export function ReturnFlow() {
       <section className="panel" aria-labelledby="flow-title">
         <div className="page-heading">
           <h1 id="flow-title">Return flow</h1>
-          <p className="muted">Lookup an order, capture a structured reason, choose a resolution, and generate a label.</p>
+          <p className="muted">
+            Lookup an order, capture a structured reason, choose a resolution, and generate a label.
+          </p>
         </div>
 
         <ol className="stepper" aria-label="Return progress">
           {visibleSteps.map((candidate, index) => (
             <li
-              className={index === activeStepIndex ? "active" : index < activeStepIndex ? "complete" : ""}
+              className={
+                index === activeStepIndex ? "active" : index < activeStepIndex ? "complete" : ""
+              }
               key={candidate.id}
             >
               <span>{index + 1}</span>
@@ -212,7 +224,11 @@ export function ReturnFlow() {
         <div aria-live="polite" className="sr-status">
           {status}
         </div>
-        {error ? <p className="danger" role="alert">{error}</p> : null}
+        {error ? (
+          <p className="danger" role="alert">
+            {error}
+          </p>
+        ) : null}
 
         {step === "lookup" ? (
           <form
@@ -225,7 +241,11 @@ export function ReturnFlow() {
           >
             <div className="field">
               <label htmlFor="order-id">Order number</label>
-              <input id="order-id" value={orderId} onChange={(event) => setOrderId(event.target.value)} />
+              <input
+                id="order-id"
+                value={orderId}
+                onChange={(event) => setOrderId(event.target.value)}
+              />
             </div>
             <div className="field">
               <label htmlFor="order-email">Email</label>
@@ -283,7 +303,11 @@ export function ReturnFlow() {
 
             <div className="field">
               <label htmlFor="reason">Reason</label>
-              <select id="reason" value={reason} onChange={(event) => setReason(event.target.value as ReturnReasonCode)}>
+              <select
+                id="reason"
+                value={reason}
+                onChange={(event) => setReason(event.target.value as ReturnReasonCode)}
+              >
                 {RETURN_REASON_CODES.map((code) => (
                   <option key={code} value={code}>
                     {reasonLabels[code]}
@@ -294,7 +318,11 @@ export function ReturnFlow() {
 
             <div className="field">
               <label htmlFor="reason-note">Details</label>
-              <textarea id="reason-note" value={note} onChange={(event) => setNote(event.target.value)} />
+              <textarea
+                id="reason-note"
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+              />
             </div>
 
             <fieldset>
@@ -470,7 +498,8 @@ export function ReturnFlow() {
               <strong>Resolution:</strong> {resolutionLabels[returnRecord.requestedResolution]}
             </p>
             <p>
-              <strong>Reason:</strong> {returnRecord.reasonCodes.map((code) => reasonLabels[code]).join(", ")}
+              <strong>Reason:</strong>{" "}
+              {returnRecord.reasonCodes.map((code) => reasonLabels[code]).join(", ")}
             </p>
             {returnRecord.label ? (
               <p>

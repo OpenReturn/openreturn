@@ -27,12 +27,14 @@ export abstract class MockGenericCommerceAdapter implements GenericCommerceAdapt
 
   /** Looks up a mock order unless the id is empty or starts with MISSING. */
   public async lookupOrder(orderId: string, email = "customer@example.com"): Promise<Order | null> {
+    this.assertConfigured();
     if (!orderId || orderId.toUpperCase().startsWith("MISSING")) {
       return null;
     }
-    const normalizedEmail = typeof email === "string" && email.trim().length > 0
-      ? email.toLowerCase()
-      : "customer@example.com";
+    const normalizedEmail =
+      typeof email === "string" && email.trim().length > 0
+        ? email.toLowerCase()
+        : "customer@example.com";
     return {
       id: orderId,
       externalOrderId: `${String(this.code).toUpperCase()}-${orderId}`,
@@ -65,8 +67,12 @@ export abstract class MockGenericCommerceAdapter implements GenericCommerceAdapt
 
   /** Creates or returns an idempotent mock return authorization for an order. */
   public async createReturnAuthorization(orderId: string, items: ReturnItem[]): Promise<string> {
+    this.assertConfigured();
     if (typeof orderId !== "string" || orderId.trim().length === 0) {
-      throw new AdapterError("invalid_authorization_request", "orderId is required to create a return authorization");
+      throw new AdapterError(
+        "invalid_authorization_request",
+        "orderId is required to create a return authorization"
+      );
     }
     if (!Array.isArray(items) || items.length === 0) {
       throw new AdapterError(
@@ -85,15 +91,25 @@ export abstract class MockGenericCommerceAdapter implements GenericCommerceAdapt
 
   /** Records a mock outbound return status sync. */
   public async syncReturnStatus(returnId: string, status: string): Promise<void> {
+    this.assertConfigured();
     if (
       typeof returnId !== "string" ||
       returnId.trim().length === 0 ||
       typeof status !== "string" ||
       status.trim().length === 0
     ) {
-      throw new AdapterError("invalid_return_sync", "returnId and status are required to sync a return");
+      throw new AdapterError(
+        "invalid_return_sync",
+        "returnId and status are required to sync a return"
+      );
     }
     this.syncedStatuses.set(returnId, status);
+  }
+
+  private assertConfigured(): void {
+    if (!this.config.apiKey) {
+      throw new AdapterError("missing_api_key", `${this.name} API key is required`);
+    }
   }
 }
 

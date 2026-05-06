@@ -4,15 +4,12 @@
     "rootDir": "src",
     "composite": true,
     "outDir": "dist",
-    "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo",
-    "rootDir": "src"
+    "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo"
   },
   "references": [
     {
       "path": "../types"
     }
   ],
-  "include": [
-    "src/**/*.ts"
-  ]
+  "include": ["src/**/*.ts"]
 }

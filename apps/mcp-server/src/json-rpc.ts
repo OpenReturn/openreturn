@@ -64,7 +64,11 @@ export class StdioJsonRpcTransport {
           continue;
         }
         const length = Number(match[1]);
-        if (!Number.isInteger(length) || length < 0 || length > StdioJsonRpcTransport.maxContentLength) {
+        if (
+          !Number.isInteger(length) ||
+          length < 0 ||
+          length > StdioJsonRpcTransport.maxContentLength
+        ) {
           this.buffer = this.buffer.subarray(separator + 4);
           process.stdout.write(
             encodeMessage({

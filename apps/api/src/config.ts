@@ -55,7 +55,9 @@ export function loadConfig(): ApiConfig {
   const oauthTokenSecret =
     process.env.OAUTH_TOKEN_SECRET ?? "development-secret-change-before-production";
   if ((nodeEnv === "production" || requireAuth) && oauthTokenSecret.length < 32) {
-    issues.push("OAUTH_TOKEN_SECRET must be at least 32 characters when auth or production mode is enabled");
+    issues.push(
+      "OAUTH_TOKEN_SECRET must be at least 32 characters when auth or production mode is enabled"
+    );
   }
   if (nodeEnv === "production" && oauthTokenSecret.startsWith("development-")) {
     issues.push("OAUTH_TOKEN_SECRET must not use the development default in production");
@@ -130,7 +132,7 @@ function parseUrl(name: string, fallback: string, issues: string[]): string {
   const value = process.env[name] ?? fallback;
   try {
     new URL(value);
-    return value;
+    return stripTrailingSlash(value);
   } catch {
     issues.push(`${name} must be an absolute URL`);
     return fallback;
@@ -144,7 +146,7 @@ function parseOptionalUrl(name: string, issues: string[]): string | undefined {
   }
   try {
     new URL(value);
-    return value;
+    return stripTrailingSlash(value);
   } catch {
     issues.push(`${name} must be an absolute URL`);
     return undefined;
@@ -154,4 +156,8 @@ function parseOptionalUrl(name: string, issues: string[]): string | undefined {
 /** Resolves the configured API key for a built-in carrier. */
 export function carrierApiKey(config: ApiConfig, carrier: CarrierCode): string {
   return config.adapters.carrierApiKeys[carrier];
+}
+
+function stripTrailingSlash(value: string): string {
+  return value.replace(/\/$/, "");
 }

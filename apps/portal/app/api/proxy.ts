@@ -29,10 +29,7 @@ export async function proxyApiRequest(
     return NextResponse.json(payload, { status: response.status });
   } catch (caught) {
     const message = caught instanceof Error ? caught.message : "OpenReturn API is unavailable";
-    return NextResponse.json(
-      { error: { code: "api_unavailable", message } },
-      { status: 502 }
-    );
+    return NextResponse.json({ error: { code: "api_unavailable", message } }, { status: 502 });
   }
 }
 

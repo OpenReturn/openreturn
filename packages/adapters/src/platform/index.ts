@@ -39,12 +39,14 @@ export abstract class MockPlatformAdapter implements PlatformAdapter {
 
   /** Looks up a mock order unless the id is empty or starts with MISSING. */
   public async lookupOrder(orderId: string, email = "customer@example.com"): Promise<Order | null> {
+    this.assertConfigured();
     if (!orderId || orderId.toUpperCase().startsWith("MISSING")) {
       return null;
     }
-    const normalizedEmail = typeof email === "string" && email.trim().length > 0
-      ? email.toLowerCase()
-      : "customer@example.com";
+    const normalizedEmail =
+      typeof email === "string" && email.trim().length > 0
+        ? email.toLowerCase()
+        : "customer@example.com";
     const itemSeed = orderId.replace(/[^a-z0-9]/gi, "").slice(-4) || "1001";
     return {
       id: orderId,
@@ -88,8 +90,12 @@ export abstract class MockPlatformAdapter implements PlatformAdapter {
 
   /** Creates or returns an idempotent mock return authorization for an order. */
   public async createReturnAuthorization(orderId: string, items: ReturnItem[]): Promise<string> {
+    this.assertConfigured();
     if (typeof orderId !== "string" || orderId.trim().length === 0) {
-      throw new AdapterError("invalid_authorization_request", "orderId is required to create a return authorization");
+      throw new AdapterError(
+        "invalid_authorization_request",
+        "orderId is required to create a return authorization"
+      );
     }
     if (!Array.isArray(items) || items.length === 0) {
       throw new AdapterError(
@@ -108,6 +114,7 @@ export abstract class MockPlatformAdapter implements PlatformAdapter {
 
   /** Records that the platform order was marked as refunded. */
   public async markRefunded(orderId: string, refund: RefundResult): Promise<void> {
+    this.assertConfigured();
     if (typeof orderId !== "string" || orderId.trim().length === 0) {
       throw new AdapterError("invalid_refund_sync", "orderId is required to mark a refund");
     }
@@ -115,10 +122,8 @@ export abstract class MockPlatformAdapter implements PlatformAdapter {
   }
 
   /** Records that the platform order has an exchange request. */
-  public async markExchangeRequested(
-    orderId: string,
-    exchange: ExchangeSelection
-  ): Promise<void> {
+  public async markExchangeRequested(orderId: string, exchange: ExchangeSelection): Promise<void> {
+    this.assertConfigured();
     if (typeof orderId !== "string" || orderId.trim().length === 0) {
       throw new AdapterError("invalid_exchange_sync", "orderId is required to mark an exchange");
     }
@@ -128,6 +133,12 @@ export abstract class MockPlatformAdapter implements PlatformAdapter {
   protected imageUrl(slug: string): string {
     const baseUrl = this.config.storeUrl ?? "https://cdn.openreturn.local/reference-store";
     return `${baseUrl.replace(/\/$/, "")}/${slug}.jpg`;
+  }
+
+  private assertConfigured(): void {
+    if (!this.config.apiKey) {
+      throw new AdapterError("missing_api_key", `${this.name} API key is required`);
+    }
   }
 }
 

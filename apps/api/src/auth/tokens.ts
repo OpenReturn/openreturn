@@ -29,7 +29,11 @@ export class OAuthTokenService {
   }
 
   /** Issues a delegated token preserving the consumer subject and recording the acting agent. */
-  public issueDelegatedToken(subject: AuthClaims, actor: string, scope: string): OAuthTokenResponse {
+  public issueDelegatedToken(
+    subject: AuthClaims,
+    actor: string,
+    scope: string
+  ): OAuthTokenResponse {
     return this.sign({ sub: subject.sub, scope, act: { sub: actor } });
   }
 
@@ -41,7 +45,9 @@ export class OAuthTokenService {
     }) as AuthClaims;
   }
 
-  private sign(claims: Pick<AuthClaims, "sub" | "scope"> & Partial<Pick<AuthClaims, "act">>): OAuthTokenResponse {
+  private sign(
+    claims: Pick<AuthClaims, "sub" | "scope"> & Partial<Pick<AuthClaims, "act">>
+  ): OAuthTokenResponse {
     const expiresIn = 60 * 60;
     const accessToken = jwt.sign(
       {
@@ -92,14 +98,18 @@ export function requireAuth(tokenService: OAuthTokenService, requiredScope?: str
   return (request: AuthenticatedRequest, response: Response, next: NextFunction): void => {
     const header = request.header("authorization");
     if (!header?.startsWith("Bearer ")) {
-      response.status(401).json({ error: { code: "unauthorized", message: "Bearer token required" } });
+      response
+        .status(401)
+        .json({ error: { code: "unauthorized", message: "Bearer token required" } });
       return;
     }
 
     try {
       const claims = tokenService.verify(header.slice("Bearer ".length));
       if (requiredScope && !claims.scope.split(" ").includes(requiredScope)) {
-        response.status(403).json({ error: { code: "forbidden", message: "Required scope missing" } });
+        response
+          .status(403)
+          .json({ error: { code: "forbidden", message: "Required scope missing" } });
         return;
       }
       request.auth = claims;

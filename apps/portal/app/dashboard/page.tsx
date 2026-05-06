@@ -13,7 +13,9 @@ export default async function DashboardPage() {
     loadError = caught instanceof Error ? caught.message : "Unable to load returns";
   }
   const total = returns.length;
-  const exchangeCount = returns.filter((record) => record.requestedResolution === "exchange").length;
+  const exchangeCount = returns.filter(
+    (record) => record.requestedResolution === "exchange"
+  ).length;
   const openCount = returns.filter((record) => record.status !== "completed").length;
   const labelReadyCount = returns.filter((record) => Boolean(record.label)).length;
   const overdueCount = returns.filter((record) => isOlderThanDays(record.updatedAt, 7)).length;
@@ -134,7 +136,9 @@ export default async function DashboardPage() {
                       <span className="status-pill">{record.status.replaceAll("_", " ")}</span>
                     </td>
                     <td>{record.requestedResolution.replaceAll("_", " ")}</td>
-                    <td>{record.reasonCodes.map((code) => code.replaceAll("_", " ")).join(", ")}</td>
+                    <td>
+                      {record.reasonCodes.map((code) => code.replaceAll("_", " ")).join(", ")}
+                    </td>
                     <td>{new Date(record.updatedAt).toLocaleDateString()}</td>
                   </tr>
                 ))}

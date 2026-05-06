@@ -451,13 +451,38 @@ components:
   schemas:
     ReturnState:
       type: string
-      enum: [initiated, label_generated, shipped, in_transit, delivered, inspection, approved, rejected, refunded, exchanged, completed]
+      enum:
+        [
+          initiated,
+          label_generated,
+          shipped,
+          in_transit,
+          delivered,
+          inspection,
+          approved,
+          rejected,
+          refunded,
+          exchanged,
+          completed
+        ]
     ResolutionType:
       type: string
       enum: [refund, exchange, store_credit, coupon_code]
     ReasonCode:
       type: string
-      enum: [defect, size, not_as_described, wrong_item, arrived_late, damaged_in_transit, duplicate_order, changed_mind, unwanted, other]
+      enum:
+        [
+          defect,
+          size,
+          not_as_described,
+          wrong_item,
+          arrived_late,
+          damaged_in_transit,
+          duplicate_order,
+          changed_mind,
+          unwanted,
+          other
+        ]
     CarrierCode:
       type: string
       enum: [postnl, dhl, ups, dpd, budbee]
@@ -716,7 +741,21 @@ components:
         createdAt: { type: string, format: date-time }
     OpenReturnRecord:
       type: object
-      required: [id, orderId, customer, status, requestedResolution, reasonCodes, items, returnMethod, tracking, events, createdAt, updatedAt]
+      required:
+        [
+          id,
+          orderId,
+          customer,
+          status,
+          requestedResolution,
+          reasonCodes,
+          items,
+          returnMethod,
+          tracking,
+          events,
+          createdAt,
+          updatedAt
+        ]
       properties:
         id: { type: string }
         orderId: { type: string }

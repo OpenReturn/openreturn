@@ -18,13 +18,16 @@ import type {
 
 /** REST API client used by MCP tools to call an OpenReturn API server. */
 export class OpenReturnApiClient {
+  private readonly apiBaseUrl: string;
   private accessToken?: string;
 
   public constructor(
-    private readonly apiBaseUrl: string,
+    apiBaseUrl: string,
     private readonly clientId = "openreturn-mcp-agent",
     private readonly subjectToken?: string
-  ) {}
+  ) {
+    this.apiBaseUrl = apiBaseUrl.replace(/\/$/, "");
+  }
 
   /** Reads the retailer discovery document. */
   public async discover(): Promise<OpenReturnDiscoveryDocument> {
@@ -38,7 +41,9 @@ export class OpenReturnApiClient {
   }
 
   /** Lists returns with optional status, email, and limit filters. */
-  public async listReturns(input: ListReturnsRequest = {}): Promise<{ returns: OpenReturnRecord[] }> {
+  public async listReturns(
+    input: ListReturnsRequest = {}
+  ): Promise<{ returns: OpenReturnRecord[] }> {
     const params = new URLSearchParams();
     if (input.status) {
       params.set("status", input.status);
@@ -79,10 +84,13 @@ export class OpenReturnApiClient {
     id: string,
     input: SelectExchangeRequest
   ): Promise<{ return: OpenReturnRecord }> {
-    return this.request<{ return: OpenReturnRecord }>(`/returns/${encodeURIComponent(id)}/exchange`, {
-      method: "POST",
-      body: input
-    });
+    return this.request<{ return: OpenReturnRecord }>(
+      `/returns/${encodeURIComponent(id)}/exchange`,
+      {
+        method: "POST",
+        body: input
+      }
+    );
   }
 
   /** Selects a carrier and generates a label for a return. */
@@ -90,10 +98,13 @@ export class OpenReturnApiClient {
     id: string,
     input: SelectCarrierRequest
   ): Promise<{ return: OpenReturnRecord }> {
-    return this.request<{ return: OpenReturnRecord }>(`/returns/${encodeURIComponent(id)}/carrier`, {
-      method: "POST",
-      body: input
-    });
+    return this.request<{ return: OpenReturnRecord }>(
+      `/returns/${encodeURIComponent(id)}/carrier`,
+      {
+        method: "POST",
+        body: input
+      }
+    );
   }
 
   /** Retrieves generated shipping label metadata. */

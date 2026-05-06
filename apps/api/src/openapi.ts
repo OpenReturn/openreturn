@@ -576,7 +576,15 @@ export const openApiDocument = {
       },
       ShippingLabel: {
         type: "object",
-        required: ["id", "carrier", "trackingNumber", "labelUrl", "format", "expiresAt", "createdAt"],
+        required: [
+          "id",
+          "carrier",
+          "trackingNumber",
+          "labelUrl",
+          "format",
+          "expiresAt",
+          "createdAt"
+        ],
         properties: {
           id: { type: "string" },
           carrier: { type: "string" },

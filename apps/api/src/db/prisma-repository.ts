@@ -1,6 +1,6 @@
-import { PrismaClient, type Prisma } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import type { OpenReturnRecord, ReturnEvent } from "@openreturn/types";
-import { notFound, type ReturnListFilter, type ReturnRepository } from "@openreturn/core";
+import { conflict, notFound, type ReturnListFilter, type ReturnRepository } from "@openreturn/core";
 
 function toJson(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -15,30 +15,37 @@ export class PrismaReturnRepository implements ReturnRepository {
   public constructor(private readonly prisma = new PrismaClient()) {}
 
   public async create(record: OpenReturnRecord): Promise<OpenReturnRecord> {
-    await this.prisma.returnRecord.create({
-      data: {
-        id: record.id,
-        orderId: record.orderId,
-        externalOrderId: record.externalOrderId,
-        customerEmail: record.customer.email,
-        status: record.status,
-        labelTrackingNumber: record.label?.trackingNumber,
-        data: toJson(record),
-        createdAt: new Date(record.createdAt),
-        updatedAt: new Date(record.updatedAt),
-        events: {
-          create: record.events.map((event) => ({
-            id: event.id,
-            type: event.type,
-            state: event.state,
-            message: event.message,
-            actor: event.actor,
-            data: event.data ? toJson(event.data) : undefined,
-            createdAt: new Date(event.createdAt)
-          }))
+    try {
+      await this.prisma.returnRecord.create({
+        data: {
+          id: record.id,
+          orderId: record.orderId,
+          externalOrderId: record.externalOrderId,
+          customerEmail: record.customer.email,
+          status: record.status,
+          labelTrackingNumber: record.label?.trackingNumber,
+          data: toJson(record),
+          createdAt: new Date(record.createdAt),
+          updatedAt: new Date(record.updatedAt),
+          events: {
+            create: record.events.map((event) => ({
+              id: event.id,
+              type: event.type,
+              state: event.state,
+              message: event.message,
+              actor: event.actor,
+              data: event.data ? toJson(event.data) : undefined,
+              createdAt: new Date(event.createdAt)
+            }))
+          }
         }
+      });
+    } catch (error) {
+      if (isPrismaKnownError(error, "P2002")) {
+        throw conflict(`Return already exists: ${record.id}`);
       }
-    });
+      throw error;
+    }
     return record;
   }
 
@@ -78,15 +85,22 @@ export class PrismaReturnRepository implements ReturnRepository {
   }
 
   public async update(record: OpenReturnRecord): Promise<OpenReturnRecord> {
-    await this.prisma.returnRecord.update({
-      where: { id: record.id },
-      data: {
-        status: record.status,
-        labelTrackingNumber: record.label?.trackingNumber,
-        data: toJson(record),
-        updatedAt: new Date(record.updatedAt)
+    try {
+      await this.prisma.returnRecord.update({
+        where: { id: record.id },
+        data: {
+          status: record.status,
+          labelTrackingNumber: record.label?.trackingNumber,
+          data: toJson(record),
+          updatedAt: new Date(record.updatedAt)
+        }
+      });
+    } catch (error) {
+      if (isPrismaKnownError(error, "P2025")) {
+        throw notFound(`Return not found: ${record.id}`);
       }
-    });
+      throw error;
+    }
     await this.syncEvents(record);
     return record;
   }
@@ -126,4 +140,8 @@ export class PrismaReturnRepository implements ReturnRepository {
       });
     }
   }
+}
+
+function isPrismaKnownError(error: unknown, code: string): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === code;
 }

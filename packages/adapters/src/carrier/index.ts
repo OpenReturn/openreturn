@@ -62,7 +62,10 @@ export abstract class MockCarrierAdapter implements CarrierAdapter {
       .replaceAll("-", "")
       .slice(0, 6)
       .toUpperCase()}`;
-    const baseUrl = (this.config.labelBaseUrl ?? "https://labels.openreturn.local").replace(/\/$/, "");
+    const baseUrl = (this.config.labelBaseUrl ?? "https://labels.openreturn.local").replace(
+      /\/$/,
+      ""
+    );
 
     const label: ShippingLabel = {
       id: randomUUID(),
@@ -79,7 +82,9 @@ export abstract class MockCarrierAdapter implements CarrierAdapter {
 
   /** Returns a deterministic mock tracking timeline for known labels. */
   public async trackShipment(trackingNumber: string): Promise<TrackingEvent[]> {
-    const label = [...this.labels.values()].find((candidate) => candidate.trackingNumber === trackingNumber);
+    const label = [...this.labels.values()].find(
+      (candidate) => candidate.trackingNumber === trackingNumber
+    );
     if (!label) {
       return [
         {
@@ -158,18 +163,25 @@ export abstract class MockCarrierAdapter implements CarrierAdapter {
   }
 
   protected resolveServiceLevel(serviceLevel?: string): string {
-    const requested = serviceLevel ?? this.config.defaultServiceLevel ?? this.supportedServiceLevels[0];
+    const requested =
+      serviceLevel ?? this.config.defaultServiceLevel ?? this.supportedServiceLevels[0];
     if (!requested || !this.supportedServiceLevels.includes(requested)) {
-      throw new AdapterError("unsupported_service_level", `${this.name} does not support ${requested}`, {
-        supportedServiceLevels: this.supportedServiceLevels
-      });
+      throw new AdapterError(
+        "unsupported_service_level",
+        `${this.name} does not support ${requested}`,
+        {
+          supportedServiceLevels: this.supportedServiceLevels
+        }
+      );
     }
     return requested;
   }
 
   private assertConfigured(): void {
     const apiKey =
-      this.config.apiKeys?.[this.code as CarrierCode] ?? this.config.apiKey ?? this.config.apiKeys?.postnl;
+      this.config.apiKeys?.[this.code as CarrierCode] ??
+      this.config.apiKey ??
+      this.config.apiKeys?.postnl;
     if (!apiKey) {
       throw new AdapterError("missing_api_key", `${this.name} API key is required`);
     }
@@ -231,7 +243,11 @@ export class DHLCarrierAdapter extends MockCarrierAdapter {
 export class UPSCarrierAdapter extends MockCarrierAdapter {
   public readonly code = "ups";
   public readonly name = "UPS";
-  protected override readonly supportedServiceLevels = ["standard", "express-saver", "access-point"];
+  protected override readonly supportedServiceLevels = [
+    "standard",
+    "express-saver",
+    "access-point"
+  ];
 
   public constructor(config: CarrierAdapterConfig) {
     super(config);

@@ -16,14 +16,20 @@ Branch: `feat/phase2`
 - TypeScript package output: package tsconfigs now set `rootDir: "src"` so manifests pointing at `dist/index.*` resolve correctly.
 - Adapter constructors: concrete platform and generic commerce adapters now expose public constructors, fixing factory instantiation under strict TypeScript.
 - Runtime validation: carrier, platform, ERP, and payment adapters now return `AdapterError` for malformed runtime input instead of raw `TypeError`.
+- Adapter configuration: commerce, ERP, and payment mock adapters now reject missing API keys consistently with carrier adapters.
 - Protocol validation: coupon percentages must now be finite numbers greater than 0 and at most 100; OpenAPI docs match this rule.
 - Repository safety: the in-memory repository no longer creates records via `update`; missing records raise `not_found`.
+- Prisma repository safety: duplicate create and missing update failures are translated into protocol `conflict` and `not_found` errors.
+- OAuth delegation: invalid delegated subject tokens now return a structured 401 instead of surfacing as an internal error.
+- URL handling: configured API, portal, MCP, and client base URLs are normalized before path concatenation.
 - Production error handling: unexpected API errors return a generic production 500 message instead of leaking internal exception text.
 - MCP resilience: stdio JSON-RPC handling is serialized, validates `Content-Length`, and avoids re-entrant buffer mutation.
 - Portal/API proxy resilience: API helpers tolerate non-JSON responses and forward bearer authorization through portal proxy routes.
 - Test routing: Vitest no longer collects Playwright E2E specs as unit tests.
 - Socket-restricted environments: API integration tests and E2E runner now skip only when local listening is prohibited. They still run in normal development and CI environments.
 - Build artifacts: tracked `*.tsbuildinfo` files were removed and ignored.
+- Config cleanup: duplicated `rootDir` keys were removed from package tsconfigs.
+- Formatting: the full repository now passes the configured Prettier check.
 
 ## Error Handling Review
 
@@ -38,7 +44,7 @@ Branch: `feat/phase2`
 - Live webhooks still need source-specific signature verification and replay protection.
 - The reference OAuth token endpoint is suitable for local/reference use; production deployments should put client authentication, key rotation, and rate limits in front of it.
 - Playwright E2E could not execute in this sandbox because local socket/IPC listening is forbidden; the command now reports an explicit skip here.
-- API integration tests are skipped in this sandbox for the same socket restriction and will execute where `listen(2)` is permitted.
+- API integration tests run in this sandbox; only Playwright is skipped by the E2E wrapper when local server binding is unavailable.
 
 ## Verification
 
@@ -46,7 +52,9 @@ Branch: `feat/phase2`
 - `pnpm prisma:generate`
 - `pnpm typecheck`
 - `pnpm lint`
+- `pnpm format:check`
 - `pnpm test`
+- `pnpm test:coverage`
 - `pnpm test:e2e` (skipped Playwright here due socket policy)
 - `pnpm build`
 

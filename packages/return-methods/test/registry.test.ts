@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  createDefaultReturnMethodRegistry,
-  ThirdPartyReturnMethod
-} from "../src";
+import { createDefaultReturnMethodRegistry, ThirdPartyReturnMethod } from "../src";
 
 describe("return method registry", () => {
   it("registers built-in and third-party methods", () => {

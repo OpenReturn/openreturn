@@ -31,4 +31,3 @@ This reference implementation is designed to be self-hosted by a retailer. The R
 - Add webhook signature verification for live carrier/platform integrations.
 - Store OAuth signing keys in a managed secret store and rotate them regularly.
 - Add rate limiting and request logging at the ingress/API gateway layer.
-- Generate and commit a `pnpm-lock.yaml` in a networked environment.

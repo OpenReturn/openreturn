@@ -20,7 +20,5 @@
       "path": "../../packages/core"
     }
   ],
-  "include": [
-    "src/**/*.ts"
-  ]
+  "include": ["src/**/*.ts"]
 }

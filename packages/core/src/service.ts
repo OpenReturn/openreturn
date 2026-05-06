@@ -11,18 +11,10 @@ import type {
   UpdateReturnRequest,
   WebhookEvent
 } from "@openreturn/types";
-import {
-  isResolutionType,
-  isReturnReasonCode,
-  isTrackingStatus
-} from "@openreturn/types";
+import { isResolutionType, isReturnReasonCode, isTrackingStatus } from "@openreturn/types";
 import { AdapterError, type CarrierAdapter } from "@openreturn/adapters";
 import type { ReturnMethodRegistry } from "@openreturn/return-methods";
-import {
-  assertTransition,
-  eventTypeForState,
-  stateForTrackingStatus
-} from "./state-machine";
+import { assertTransition, eventTypeForState, stateForTrackingStatus } from "./state-machine";
 import type { NotificationDispatcher } from "./notifications";
 import { buildNotificationMessage, NoopNotificationDispatcher } from "./notifications";
 import type { ReturnListFilter, ReturnRepository } from "./repository";
@@ -54,7 +46,8 @@ export class ReturnService {
     this.validateInitiateRequest(request);
     const now = new Date().toISOString();
     const id = randomUUID();
-    const returnMethod = request.returnMethod ?? this.defaultMethodForResolution(request.requestedResolution);
+    const returnMethod =
+      request.returnMethod ?? this.defaultMethodForResolution(request.requestedResolution);
     const method = this.returnMethods.get(returnMethod);
     if (!method) {
       throw validationError(`Unsupported return method: ${returnMethod}`);
@@ -84,7 +77,9 @@ export class ReturnService {
     }
 
     if (!method.canHandle(record)) {
-      throw validationError(`Return method ${returnMethod} cannot handle ${request.requestedResolution}`);
+      throw validationError(
+        `Return method ${returnMethod} cannot handle ${request.requestedResolution}`
+      );
     }
 
     record.events.push(
@@ -133,7 +128,11 @@ export class ReturnService {
       }
       next.events = [
         ...record.events,
-        this.createEvent(next, eventTypeForState(request.status), `Return moved to ${request.status}`)
+        this.createEvent(
+          next,
+          eventTypeForState(request.status),
+          `Return moved to ${request.status}`
+        )
       ];
     }
 
@@ -177,7 +176,10 @@ export class ReturnService {
     }
     for (const item of request.requestedItems) {
       if (!item.originalOrderItemId || !item.replacementSku || !item.replacementName) {
-        throw validationError("Exchange items require original and replacement product identifiers", item);
+        throw validationError(
+          "Exchange items require original and replacement product identifiers",
+          item
+        );
       }
       if (item.quantity < 1) {
         throw validationError("Exchange item quantity must be at least 1", item);
@@ -194,9 +196,15 @@ export class ReturnService {
       },
       events: [
         ...record.events,
-        this.createEvent(record, "return.exchange_selected", "Exchange items selected", "consumer", {
-          requestedItems: request.requestedItems
-        })
+        this.createEvent(
+          record,
+          "return.exchange_selected",
+          "Exchange items selected",
+          "consumer",
+          {
+            requestedItems: request.requestedItems
+          }
+        )
       ],
       updatedAt: now
     };

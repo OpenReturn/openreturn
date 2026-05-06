@@ -11,7 +11,5 @@
       "path": "../../packages/types"
     }
   ],
-  "include": [
-    "src/**/*.ts"
-  ]
+  "include": ["src/**/*.ts"]
 }
