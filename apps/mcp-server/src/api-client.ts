@@ -1,9 +1,19 @@
 import type {
   AddTrackingRequest,
   InitiateReturnRequest,
+  InitiateReturnResponse,
+  ListReturnsRequest,
+  LookupOrderRequest,
   OAuthTokenResponse,
+  OpenReturnDiscoveryDocument,
+  OpenReturnRecord,
+  Order,
+  ReturnEvent,
   SelectCarrierRequest,
-  SelectExchangeRequest
+  SelectExchangeRequest,
+  ShippingLabel,
+  UpdateReturnRequest,
+  WebhookEvent
 } from "@openreturn/types";
 
 export class OpenReturnApiClient {
@@ -15,43 +25,99 @@ export class OpenReturnApiClient {
     private readonly subjectToken?: string
   ) {}
 
-  public async initiateReturn(input: InitiateReturnRequest): Promise<unknown> {
-    return this.request("/returns", { method: "POST", body: input });
+  public async discover(): Promise<OpenReturnDiscoveryDocument> {
+    return this.request<OpenReturnDiscoveryDocument>("/.well-known/openreturn");
   }
 
-  public async getReturnStatus(id: string): Promise<unknown> {
-    return this.request(`/returns/${encodeURIComponent(id)}`);
+  public async lookupOrder(input: LookupOrderRequest): Promise<{ order: Order }> {
+    const query = input.email ? `?email=${encodeURIComponent(input.email)}` : "";
+    return this.request<{ order: Order }>(`/orders/${encodeURIComponent(input.orderId)}${query}`);
   }
 
-  public async selectExchange(id: string, input: SelectExchangeRequest): Promise<unknown> {
-    return this.request(`/returns/${encodeURIComponent(id)}/exchange`, {
+  public async listReturns(input: ListReturnsRequest = {}): Promise<{ returns: OpenReturnRecord[] }> {
+    const params = new URLSearchParams();
+    if (input.status) {
+      params.set("status", input.status);
+    }
+    if (input.email) {
+      params.set("email", input.email);
+    }
+    if (input.limit) {
+      params.set("limit", String(input.limit));
+    }
+    const query = params.size > 0 ? `?${params.toString()}` : "";
+    return this.request<{ returns: OpenReturnRecord[] }>(`/returns${query}`);
+  }
+
+  public async initiateReturn(input: InitiateReturnRequest): Promise<InitiateReturnResponse> {
+    return this.request<InitiateReturnResponse>("/returns", { method: "POST", body: input });
+  }
+
+  public async getReturnStatus(id: string): Promise<{ return: OpenReturnRecord }> {
+    return this.request<{ return: OpenReturnRecord }>(`/returns/${encodeURIComponent(id)}`);
+  }
+
+  public async updateReturn(
+    id: string,
+    input: UpdateReturnRequest
+  ): Promise<{ return: OpenReturnRecord }> {
+    return this.request<{ return: OpenReturnRecord }>(`/returns/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      body: input
+    });
+  }
+
+  public async selectExchange(
+    id: string,
+    input: SelectExchangeRequest
+  ): Promise<{ return: OpenReturnRecord }> {
+    return this.request<{ return: OpenReturnRecord }>(`/returns/${encodeURIComponent(id)}/exchange`, {
       method: "POST",
       body: input
     });
   }
 
-  public async selectCarrier(id: string, input: SelectCarrierRequest): Promise<unknown> {
-    return this.request(`/returns/${encodeURIComponent(id)}/carrier`, {
+  public async selectCarrier(
+    id: string,
+    input: SelectCarrierRequest
+  ): Promise<{ return: OpenReturnRecord }> {
+    return this.request<{ return: OpenReturnRecord }>(`/returns/${encodeURIComponent(id)}/carrier`, {
       method: "POST",
       body: input
     });
   }
 
-  public async getLabel(id: string): Promise<unknown> {
-    return this.request(`/returns/${encodeURIComponent(id)}/label`);
+  public async getLabel(id: string): Promise<{ label: ShippingLabel }> {
+    return this.request<{ label: ShippingLabel }>(`/returns/${encodeURIComponent(id)}/label`);
   }
 
-  public async trackReturn(id: string, input: AddTrackingRequest): Promise<unknown> {
-    return this.request(`/returns/${encodeURIComponent(id)}/track`, {
+  public async trackReturn(
+    id: string,
+    input: AddTrackingRequest
+  ): Promise<{ return: OpenReturnRecord }> {
+    return this.request<{ return: OpenReturnRecord }>(`/returns/${encodeURIComponent(id)}/track`, {
       method: "POST",
       body: input
     });
   }
 
-  private async request(
+  public async getReturnEvents(id: string): Promise<{ events: ReturnEvent[] }> {
+    return this.request<{ events: ReturnEvent[] }>(`/returns/${encodeURIComponent(id)}/events`);
+  }
+
+  public async receiveWebhook(
+    input: WebhookEvent
+  ): Promise<{ accepted: boolean; return: OpenReturnRecord | null }> {
+    return this.request<{ accepted: boolean; return: OpenReturnRecord | null }>("/webhooks", {
+      method: "POST",
+      body: input
+    });
+  }
+
+  private async request<T>(
     path: string,
     options: { method?: string; body?: unknown } = {}
-  ): Promise<unknown> {
+  ): Promise<T> {
     const headers: Record<string, string> = { accept: "application/json" };
     if (options.body) {
       headers["content-type"] = "application/json";
@@ -66,7 +132,7 @@ export class OpenReturnApiClient {
       headers,
       body: options.body ? JSON.stringify(options.body) : undefined
     });
-    const payload = (await response.json()) as unknown;
+    const payload = (await response.json()) as T;
     if (!response.ok) {
       throw new Error(JSON.stringify(payload));
     }

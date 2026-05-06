@@ -1,56 +1,163 @@
 "use client";
 
-import { useState } from "react";
-import { Truck } from "lucide-react";
-import type { OpenReturnRecord, TrackingStatus } from "@openreturn/types";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { CheckCircle2, ClipboardCheck, CreditCard, PackageCheck, Truck } from "lucide-react";
+import type { OpenReturnRecord, ReturnState, TrackingStatus } from "@openreturn/types";
+
+const trackingOptions: { value: TrackingStatus; label: string }[] = [
+  { value: "accepted", label: "Accepted by carrier" },
+  { value: "in_transit", label: "In transit" },
+  { value: "out_for_delivery", label: "Out for delivery" },
+  { value: "delivered", label: "Delivered to warehouse" },
+  { value: "exception", label: "Carrier exception" }
+];
 
 export function StatusActions({ initialReturn }: { initialReturn: OpenReturnRecord }) {
+  const router = useRouter();
   const [record, setRecord] = useState(initialReturn);
-  const [status, setStatus] = useState<TrackingStatus>("accepted");
+  const [trackingStatus, setTrackingStatus] = useState<TrackingStatus>("accepted");
   const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const nextActions = useMemo(() => buildNextActions(record), [record]);
 
   async function addTracking() {
+    setBusy(true);
     setMessage("");
-    const response = await fetch(`/api/returns/${record.id}/track`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status, description: "Portal tracking update" })
-    });
-    const payload = (await response.json()) as { return?: OpenReturnRecord; error?: { message: string } };
-    if (payload.return) {
-      setRecord(payload.return);
-      setMessage(`Status updated to ${payload.return.status.replaceAll("_", " ")}`);
-    } else {
-      setMessage(payload.error?.message ?? "Tracking update failed");
+    try {
+      const response = await fetch(`/api/returns/${record.id}/track`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status: trackingStatus, description: "Portal tracking update" })
+      });
+      await applyPayload(response, "Tracking update failed");
+    } finally {
+      setBusy(false);
     }
+  }
+
+  async function updateLifecycle(status: ReturnState) {
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch(`/api/returns/${record.id}`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(buildLifecyclePayload(record, status))
+      });
+      await applyPayload(response, "Lifecycle update failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function applyPayload(response: Response, fallbackMessage: string) {
+    const payload = (await response.json()) as {
+      return?: OpenReturnRecord;
+      error?: { message: string };
+    };
+    if (!response.ok || !payload.return) {
+      setMessage(payload.error?.message ?? fallbackMessage);
+      return;
+    }
+    setRecord(payload.return);
+    setMessage(`Return moved to ${payload.return.status.replaceAll("_", " ")}`);
+    router.refresh();
   }
 
   return (
     <section className="panel" aria-labelledby="tracking-actions">
-      <h2 id="tracking-actions">Tracking update</h2>
+      <div className="section-heading">
+        <h2 id="tracking-actions">Operations</h2>
+        <span className="status-pill">{record.status.replaceAll("_", " ")}</span>
+      </div>
+
       <div className="form-grid">
         <div className="field">
           <label htmlFor="tracking-status">Carrier status</label>
           <select
             id="tracking-status"
-            value={status}
-            onChange={(event) => setStatus(event.target.value as TrackingStatus)}
+            value={trackingStatus}
+            onChange={(event) => setTrackingStatus(event.target.value as TrackingStatus)}
           >
-            <option value="accepted">Accepted</option>
-            <option value="in_transit">In transit</option>
-            <option value="out_for_delivery">Out for delivery</option>
-            <option value="delivered">Delivered</option>
-            <option value="exception">Exception</option>
+            {trackingOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
-        <button type="button" onClick={() => void addTracking()}>
+        <button type="button" onClick={() => void addTracking()} disabled={busy}>
           <Truck size={18} aria-hidden="true" />
           Add tracking
         </button>
-        <p aria-live="polite" className="muted">
-          {message || `Current state: ${record.status.replaceAll("_", " ")}`}
-        </p>
       </div>
+
+      {nextActions.length > 0 ? (
+        <div className="action-grid" aria-label="Lifecycle actions">
+          {nextActions.map((action) => (
+            <button
+              className="secondary"
+              type="button"
+              key={action.status}
+              onClick={() => void updateLifecycle(action.status)}
+              disabled={busy}
+            >
+              <action.Icon size={18} aria-hidden="true" />
+              {action.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      <p aria-live="polite" className={message.includes("failed") ? "danger" : "muted"}>
+        {message || "Carrier and warehouse updates appear immediately in the event history."}
+      </p>
     </section>
   );
+}
+
+function buildLifecyclePayload(record: OpenReturnRecord, status: ReturnState) {
+  if (status === "inspection") {
+    return {
+      status,
+      inspection: {
+        inspectedAt: new Date().toISOString(),
+        accepted: true,
+        notes: "Inspection started from the reference portal."
+      }
+    };
+  }
+  if (status === "refunded") {
+    return {
+      status,
+      refund: {
+        amount: { amount: 100, currency: "EUR" },
+        provider: "stripe",
+        transactionId: `portal-${record.id.slice(0, 8)}`,
+        processedAt: new Date().toISOString()
+      }
+    };
+  }
+  return { status };
+}
+
+function buildNextActions(record: OpenReturnRecord) {
+  switch (record.status) {
+    case "delivered":
+      return [{ status: "inspection" as const, label: "Start inspection", Icon: ClipboardCheck }];
+    case "inspection":
+      return [{ status: "approved" as const, label: "Approve return", Icon: CheckCircle2 }];
+    case "approved":
+      return record.requestedResolution === "exchange"
+        ? [{ status: "exchanged" as const, label: "Complete exchange", Icon: PackageCheck }]
+        : [{ status: "refunded" as const, label: "Process refund", Icon: CreditCard }];
+    case "refunded":
+    case "exchanged":
+    case "rejected":
+      return [{ status: "completed" as const, label: "Close return", Icon: CheckCircle2 }];
+    default:
+      return [];
+  }
 }

@@ -1,4 +1,5 @@
 import type { OpenReturnRecord, ReturnEvent, ReturnState } from "@openreturn/types";
+import { notFound } from "./errors";
 
 export interface ReturnListFilter {
   status?: ReturnState;
@@ -64,7 +65,7 @@ export class InMemoryReturnRepository implements ReturnRepository {
   public async appendEvent(returnId: string, event: ReturnEvent): Promise<OpenReturnRecord> {
     const record = this.records.get(returnId);
     if (!record) {
-      throw new Error(`Return not found: ${returnId}`);
+      throw notFound(`Return not found: ${returnId}`);
     }
     record.events.push(clone(event));
     record.updatedAt = event.createdAt;

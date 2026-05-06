@@ -142,6 +142,13 @@ nav a {
   margin-bottom: 1.25rem;
 }
 
+.section-heading {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
 h1,
 h2,
 h3 {
@@ -196,6 +203,49 @@ p {
 .form-grid {
   display: grid;
   gap: 1rem;
+}
+
+.stepper {
+  counter-reset: step;
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  list-style: none;
+  margin: 0 0 1.25rem;
+  padding: 0;
+}
+
+.stepper li {
+  align-items: center;
+  border-bottom: 3px solid var(--line);
+  color: var(--muted);
+  display: flex;
+  font-weight: 800;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding-bottom: 0.55rem;
+}
+
+.stepper span {
+  align-items: center;
+  background: #eef2f1;
+  border-radius: 999px;
+  display: inline-flex;
+  height: 1.6rem;
+  justify-content: center;
+  width: 1.6rem;
+}
+
+.stepper .active,
+.stepper .complete {
+  border-color: var(--primary);
+  color: var(--text);
+}
+
+.stepper .active span,
+.stepper .complete span {
+  background: var(--primary);
+  color: #ffffff;
 }
 
 .field {
@@ -254,9 +304,75 @@ fieldset {
   width: auto;
 }
 
+.item-swatch {
+  border-radius: 6px;
+  flex: 0 0 auto;
+  height: 2.25rem;
+  width: 2.25rem;
+}
+
+.swatch-0 {
+  background: #111827;
+}
+
+.swatch-1 {
+  background: #36557c;
+}
+
+.swatch-2 {
+  background: #7d4f33;
+}
+
+.swatch-3 {
+  background: #486b4c;
+}
+
 .item-list {
   display: grid;
   gap: 0.8rem;
+}
+
+.summary-block,
+.mini-list,
+.bar-list,
+.action-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.summary-block {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+}
+
+.mini-list span {
+  background: #f3f5f3;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.7rem;
+}
+
+.mini-list small {
+  color: var(--muted);
+}
+
+.label-meta {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  padding-top: 1rem;
+}
+
+.label-meta span,
+.detail-list dt {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.4rem;
 }
 
 .item-card {
@@ -271,6 +387,33 @@ fieldset {
   display: flex;
   gap: 0.75rem;
   justify-content: space-between;
+}
+
+.bar-row {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.bar-row > div {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  text-transform: capitalize;
+}
+
+.bar-track {
+  background: #edf0ed;
+  border-radius: 999px;
+  display: block;
+  height: 0.6rem;
+  overflow: hidden;
+}
+
+.bar-track span {
+  background: var(--primary);
+  display: block;
+  height: 100%;
 }
 
 .status-pill {
@@ -299,6 +442,11 @@ fieldset {
   margin-top: 1rem;
 }
 
+.action-grid {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  margin: 1rem 0;
+}
+
 .metrics {
   display: grid;
   gap: 1rem;
@@ -312,6 +460,50 @@ fieldset {
 .metric strong {
   display: block;
   font-size: 1.8rem;
+}
+
+.pipeline {
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.pipeline div {
+  border-left: 3px solid var(--primary);
+  display: grid;
+  gap: 0.2rem;
+  padding-left: 0.75rem;
+  text-transform: capitalize;
+}
+
+.pipeline strong {
+  font-size: 1.3rem;
+}
+
+.empty-state {
+  align-items: flex-start;
+  display: grid;
+  gap: 1rem;
+}
+
+.detail-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.detail-list div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.detail-list dt {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.detail-list dd {
+  margin: 0;
 }
 
 .table-wrap {
@@ -344,7 +536,23 @@ th {
 }
 
 .timeline-entry {
+  display: grid;
+  gap: 0.25rem;
   padding: 0.85rem;
+  position: relative;
+}
+
+.timeline-index {
+  align-items: center;
+  background: var(--primary);
+  border-radius: 999px;
+  color: #ffffff;
+  display: inline-flex;
+  font-size: 0.8rem;
+  font-weight: 800;
+  height: 1.5rem;
+  justify-content: center;
+  width: 1.5rem;
 }
 
 .sr-status {
@@ -353,6 +561,7 @@ th {
 
 @media (max-width: 780px) {
   .site-header,
+  .section-heading,
   .item-card header,
   .return-row {
     align-items: flex-start;

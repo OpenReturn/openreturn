@@ -92,4 +92,61 @@ describe("return service", () => {
     const labeled = await service.selectCarrier(record.id, { carrier: "dhl" });
     expect(labeled.label?.carrier).toBe("dhl");
   });
+
+  it("rejects invalid lifecycle transitions and incomplete refunds", async () => {
+    const { service } = createService();
+    const record = await service.initiateReturn({
+      orderId: "ORDER-3",
+      customer: { email: "customer@example.com" },
+      requestedResolution: "refund",
+      items: [
+        {
+          orderItemId: "line_1",
+          sku: "SKU",
+          name: "Item",
+          quantity: 1,
+          reason: { code: "defect" }
+        }
+      ]
+    });
+
+    await expect(service.updateReturn(record.id, { status: "completed" })).rejects.toThrow(
+      "Invalid return state transition"
+    );
+    await service.updateReturn(record.id, { status: "approved" });
+    await expect(service.updateReturn(record.id, { status: "refunded" })).rejects.toThrow(
+      "Refunded returns require a refund result"
+    );
+    await expect(service.updateReturn(record.id, {})).rejects.toThrow(
+      "At least one update field is required"
+    );
+  });
+
+  it("records non-tracking webhooks without changing return state", async () => {
+    const { service } = createService();
+    const record = await service.initiateReturn({
+      orderId: "ORDER-4",
+      customer: { email: "customer@example.com" },
+      requestedResolution: "refund",
+      items: [
+        {
+          orderItemId: "line_1",
+          sku: "SKU",
+          name: "Item",
+          quantity: 1,
+          reason: { code: "other" }
+        }
+      ]
+    });
+
+    const updated = await service.receiveWebhook({
+      source: "shopify",
+      type: "return.note_added",
+      returnId: record.id,
+      data: { note: "Customer asked about timing" }
+    });
+
+    expect(updated?.status).toBe("initiated");
+    expect(updated?.events.at(-1)?.type).toBe("webhook.received");
+  });
 });

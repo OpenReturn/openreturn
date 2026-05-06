@@ -24,8 +24,14 @@ export function createMcpHandler(client: OpenReturnApiClient) {
           return ok(request.id, { tools });
         case "tools/call": {
           const params = request.params ?? {};
-          const name = String(params.name);
-          const args = (params.arguments ?? {}) as Record<string, unknown>;
+          if (!isRecord(params) || typeof params.name !== "string") {
+            return error(request.id, -32602, "tools/call requires a string tool name");
+          }
+          const args = params.arguments === undefined ? {} : params.arguments;
+          if (!isRecord(args)) {
+            return error(request.id, -32602, "tools/call arguments must be an object");
+          }
+          const name = params.name;
           const result = await callTool(client, name, args);
           return ok(request.id, {
             content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
@@ -64,7 +70,20 @@ export function startHttpMcpServer(
     });
     request.on("end", () => {
       void (async () => {
-        const rpcRequest = JSON.parse(body) as JsonRpcRequest;
+        let rpcRequest: JsonRpcRequest;
+        try {
+          rpcRequest = JSON.parse(body) as JsonRpcRequest;
+        } catch {
+          response.writeHead(400, { "content-type": "application/json" });
+          response.end(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              id: null,
+              error: { code: -32700, message: "Parse error" }
+            })
+          );
+          return;
+        }
         const rpcResponse = await handler(rpcRequest);
         response.writeHead(200, { "content-type": "application/json" });
         response.end(JSON.stringify(rpcResponse ?? { ok: true }));
@@ -87,4 +106,8 @@ function ok(id: JsonRpcRequest["id"], result: unknown): JsonRpcResponse {
 
 function error(id: JsonRpcRequest["id"], code: number, message: string): JsonRpcResponse {
   return { jsonrpc: "2.0", id, error: { code, message } };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

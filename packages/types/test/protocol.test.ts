@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertAddTrackingRequest,
+  assertInitiateReturnRequest,
+  assertUpdateReturnRequest,
   CARRIER_CODES,
+  ProtocolValidationError,
   RESOLUTION_TYPES,
   RETURN_REASON_CODES,
   RETURN_STATES,
@@ -53,5 +57,45 @@ describe("OpenReturn protocol constants", () => {
     };
 
     expect(document.protocol).toBe("openreturn");
+  });
+
+  it("validates initiate return requests at protocol boundaries", () => {
+    const request: unknown = {
+      orderId: "ORDER-1",
+      customer: { email: "customer@example.com" },
+      requestedResolution: "refund",
+      items: [
+        {
+          orderItemId: "line_1",
+          sku: "SKU",
+          name: "Item",
+          quantity: 1,
+          reason: { code: "size" }
+        }
+      ]
+    };
+
+    expect(() => assertInitiateReturnRequest(request)).not.toThrow();
+  });
+
+  it("reports structured validation issues", () => {
+    expect(() =>
+      assertInitiateReturnRequest({
+        orderId: "",
+        customer: { email: "" },
+        requestedResolution: "cash",
+        items: [{ quantity: 0, reason: { code: "not-a-reason" } }]
+      })
+    ).toThrow(ProtocolValidationError);
+  });
+
+  it("validates tracking statuses", () => {
+    expect(() => assertAddTrackingRequest({ status: "accepted" })).not.toThrow();
+    expect(() => assertAddTrackingRequest({ status: "waiting" })).toThrow(ProtocolValidationError);
+  });
+
+  it("rejects empty update requests", () => {
+    expect(() => assertUpdateReturnRequest({})).toThrow(ProtocolValidationError);
+    expect(() => assertUpdateReturnRequest({ status: "approved" })).not.toThrow();
   });
 });

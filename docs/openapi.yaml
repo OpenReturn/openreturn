@@ -5,96 +5,328 @@ info:
   description: Reference REST API for the OpenReturn protocol.
 servers:
   - url: http://localhost:4000
+security:
+  - bearerAuth: []
+tags:
+  - name: Discovery
+  - name: OAuth
+  - name: Orders
+  - name: Returns
+  - name: Labels
+  - name: Webhooks
 paths:
+  /healthz:
+    get:
+      tags: [Discovery]
+      summary: Health check
+      security: []
+      responses:
+        "200":
+          description: API is healthy
+  /openapi.json:
+    get:
+      tags: [Discovery]
+      summary: Fetch the canonical OpenAPI document
+      security: []
+      responses:
+        "200":
+          description: OpenAPI document
   /.well-known/openreturn:
     get:
+      tags: [Discovery]
       summary: Discover OpenReturn capabilities
+      security: []
       responses:
         "200":
           description: Discovery document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenReturnDiscoveryDocument"
+  /.well-known/oauth-authorization-server:
+    get:
+      tags: [OAuth]
+      summary: Discover OAuth metadata
+      security: []
+      responses:
+        "200":
+          description: OAuth authorization server metadata
   /oauth/token:
     post:
-      summary: Issue OAuth 2.1 client credentials token
+      tags: [OAuth]
+      summary: Issue OAuth client credentials token
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                client_id:
+                  type: string
+                scope:
+                  type: string
       responses:
         "200":
-          description: OAuth token response
+          description: Token response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthTokenResponse"
   /oauth/delegate:
     post:
-      summary: Exchange a consumer subject token for a delegated agent token
+      tags: [OAuth]
+      summary: Exchange a subject token for a delegated agent token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TokenDelegationRequest"
       responses:
         "200":
-          description: OAuth delegated token response
+          description: Delegated token response
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
   /orders/{id}:
     get:
-      summary: Lookup an order through the configured platform adapter
+      tags: [Orders]
+      summary: Lookup an order through the configured commerce adapter
       parameters:
-        - name: id
+        - $ref: "#/components/parameters/IdPath"
+        - name: email
+          in: query
+          schema:
+            type: string
+            format: email
+      responses:
+        "200":
+          description: Order
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order:
+                    $ref: "#/components/schemas/Order"
+        "404":
+          $ref: "#/components/responses/Error"
+  /returns:
+    get:
+      tags: [Returns]
+      summary: List returns
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/ReturnState"
+        - name: email
+          in: query
+          schema:
+            type: string
+            format: email
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+      responses:
+        "200":
+          description: Return list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  returns:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OpenReturnRecord"
+        "400":
+          $ref: "#/components/responses/Error"
+    post:
+      tags: [Returns]
+      summary: Initiate a return
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InitiateReturnRequest"
+      responses:
+        "201":
+          description: Return created
+        "400":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /returns/{id}:
+    get:
+      tags: [Returns]
+      summary: Get a return
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Return
+        "404":
+          $ref: "#/components/responses/Error"
+    put:
+      tags: [Returns]
+      summary: Update return lifecycle data
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateReturnRequest"
+      responses:
+        "200":
+          description: Updated return
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /returns/{id}/exchange:
+    post:
+      tags: [Returns]
+      summary: Select exchange products
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SelectExchangeRequest"
+      responses:
+        "200":
+          description: Updated return
+        "400":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /returns/{id}/carrier:
+    post:
+      tags: [Returns]
+      summary: Select carrier and generate label
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SelectCarrierRequest"
+      responses:
+        "200":
+          description: Updated return with label
+        "400":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /returns/{id}/label:
+    get:
+      tags: [Labels]
+      summary: Get shipping label metadata
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Shipping label
+        "404":
+          $ref: "#/components/responses/Error"
+  /labels/{carrier}/{trackingNumber}:
+    get:
+      tags: [Labels]
+      summary: Download a mock label PDF
+      security: []
+      parameters:
+        - name: carrier
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: trackingNumber
           in: path
           required: true
           schema:
             type: string
       responses:
         "200":
-          description: Order
-  /returns:
-    get:
-      summary: List returns
-      responses:
-        "200":
-          description: Return list
-    post:
-      summary: Initiate return request
-      responses:
-        "201":
-          description: Return created
-  /returns/{id}:
-    get:
-      summary: Get return status
-      responses:
-        "200":
-          description: Return
-    put:
-      summary: Update return
-      responses:
-        "200":
-          description: Updated return
-  /returns/{id}/exchange:
-    post:
-      summary: Select exchange products
-      responses:
-        "200":
-          description: Updated return
-  /returns/{id}/carrier:
-    post:
-      summary: Select carrier and generate label
-      responses:
-        "200":
-          description: Updated return with label
-  /returns/{id}/label:
-    get:
-      summary: Get shipping label
-      responses:
-        "200":
-          description: Shipping label
+          description: PDF label
   /returns/{id}/track:
     post:
+      tags: [Returns]
       summary: Add tracking update
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddTrackingRequest"
       responses:
         "200":
           description: Updated return
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
   /returns/{id}/events:
     get:
+      tags: [Returns]
       summary: Get return event history
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
       responses:
         "200":
           description: Event history
+        "404":
+          $ref: "#/components/responses/Error"
   /webhooks:
     post:
-      summary: Receive webhook events
+      tags: [Webhooks]
+      summary: Receive carrier or commerce webhook events
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookEvent"
       responses:
         "202":
           description: Accepted
+        "400":
+          $ref: "#/components/responses/Error"
 components:
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    Error:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
   securitySchemes:
     bearerAuth:
       type: http
@@ -103,171 +335,206 @@ components:
   schemas:
     ReturnState:
       type: string
-      enum:
-        - initiated
-        - label_generated
-        - shipped
-        - in_transit
-        - delivered
-        - inspection
-        - approved
-        - rejected
-        - refunded
-        - exchanged
-        - completed
+      enum: [initiated, label_generated, shipped, in_transit, delivered, inspection, approved, rejected, refunded, exchanged, completed]
     ResolutionType:
       type: string
-      enum:
-        - refund
-        - exchange
-        - store_credit
-        - coupon_code
+      enum: [refund, exchange, store_credit, coupon_code]
     ReasonCode:
       type: string
-      enum:
-        - defect
-        - size
-        - not_as_described
-        - wrong_item
-        - arrived_late
-        - damaged_in_transit
-        - duplicate_order
-        - changed_mind
-        - unwanted
-        - other
+      enum: [defect, size, not_as_described, wrong_item, arrived_late, damaged_in_transit, duplicate_order, changed_mind, unwanted, other]
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: integer
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+    Address:
+      type: object
+      required: [line1, city, postalCode, countryCode]
+      properties:
+        name: { type: string }
+        line1: { type: string }
+        line2: { type: string }
+        city: { type: string }
+        region: { type: string }
+        postalCode: { type: string }
+        countryCode: { type: string }
     Customer:
       type: object
-      required:
-        - email
+      required: [email]
       properties:
-        id:
-          type: string
-        email:
-          type: string
-          format: email
-        name:
-          type: string
-        phone:
-          type: string
-    ReturnReason:
+        id: { type: string }
+        email: { type: string, format: email }
+        name: { type: string }
+        phone: { type: string }
+        shippingAddress:
+          $ref: "#/components/schemas/Address"
+    OrderItem:
       type: object
-      required:
-        - code
+      required: [id, sku, name, quantity, unitPrice]
       properties:
-        code:
-          $ref: "#/components/schemas/ReasonCode"
-        note:
-          type: string
-        evidenceUrls:
-          type: array
-          items:
+        id: { type: string }
+        sku: { type: string }
+        name: { type: string }
+        quantity: { type: integer, minimum: 1 }
+        unitPrice:
+          $ref: "#/components/schemas/Money"
+        imageUrl: { type: string }
+        attributes:
+          type: object
+          additionalProperties:
             type: string
-            format: uri
-    ReturnItem:
+    Order:
       type: object
-      required:
-        - orderItemId
-        - sku
-        - name
-        - quantity
-        - reason
+      required: [id, customer, items, total, placedAt]
       properties:
-        orderItemId:
-          type: string
-        sku:
-          type: string
-        name:
-          type: string
-        quantity:
-          type: integer
-          minimum: 1
-        reason:
-          $ref: "#/components/schemas/ReturnReason"
-        condition:
-          type: string
-          enum:
-            - unopened
-            - new
-            - used
-            - defective
-            - damaged
-    InitiateReturnRequest:
-      type: object
-      required:
-        - orderId
-        - customer
-        - items
-        - requestedResolution
-      properties:
-        orderId:
-          type: string
-        externalOrderId:
-          type: string
+        id: { type: string }
+        externalOrderId: { type: string }
         customer:
           $ref: "#/components/schemas/Customer"
         items:
           type: array
           items:
+            $ref: "#/components/schemas/OrderItem"
+        total:
+          $ref: "#/components/schemas/Money"
+        placedAt: { type: string, format: date-time }
+        platform: { type: string }
+    ReturnReason:
+      type: object
+      required: [code]
+      properties:
+        code:
+          $ref: "#/components/schemas/ReasonCode"
+        note: { type: string }
+        evidenceUrls:
+          type: array
+          items: { type: string, format: uri }
+    ReturnItem:
+      type: object
+      required: [orderItemId, sku, name, quantity, reason]
+      properties:
+        orderItemId: { type: string }
+        sku: { type: string }
+        name: { type: string }
+        quantity: { type: integer, minimum: 1 }
+        reason:
+          $ref: "#/components/schemas/ReturnReason"
+        condition:
+          type: string
+          enum: [unopened, new, used, defective, damaged]
+    ExchangeItem:
+      type: object
+      required: [originalOrderItemId, replacementSku, replacementName, quantity]
+      properties:
+        originalOrderItemId: { type: string }
+        replacementSku: { type: string }
+        replacementName: { type: string }
+        quantity: { type: integer, minimum: 1 }
+        attributes: { type: object }
+        priceDifference:
+          $ref: "#/components/schemas/Money"
+    InitiateReturnRequest:
+      type: object
+      required: [orderId, customer, items, requestedResolution]
+      properties:
+        orderId: { type: string }
+        externalOrderId: { type: string }
+        customer:
+          $ref: "#/components/schemas/Customer"
+        items:
+          type: array
+          minItems: 1
+          items:
             $ref: "#/components/schemas/ReturnItem"
         requestedResolution:
           $ref: "#/components/schemas/ResolutionType"
-        returnMethod:
-          type: string
-        metadata:
-          type: object
-          additionalProperties: true
-    ShippingLabel:
+        returnMethod: { type: string }
+        metadata: { type: object }
+    UpdateReturnRequest:
       type: object
-      required:
-        - id
-        - carrier
-        - trackingNumber
-        - labelUrl
-        - format
-        - expiresAt
-        - createdAt
+      minProperties: 1
       properties:
-        id:
-          type: string
+        status:
+          $ref: "#/components/schemas/ReturnState"
+        inspection: { type: object }
+        refund: { type: object }
+        storeCredit: { type: object }
+        couponCode: { type: object }
+        metadata: { type: object }
+    SelectExchangeRequest:
+      type: object
+      required: [requestedItems]
+      properties:
+        requestedItems:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ExchangeItem"
+    SelectCarrierRequest:
+      type: object
+      required: [carrier]
+      properties:
         carrier:
           type: string
-        trackingNumber:
-          type: string
-        labelUrl:
-          type: string
-          format: uri
+          enum: [postnl, dhl, ups, dpd, budbee]
+        serviceLevel: { type: string }
+        dropoffPointId: { type: string }
+        pickupWindow: { type: object }
+        shipFrom:
+          $ref: "#/components/schemas/Address"
+        shipTo:
+          $ref: "#/components/schemas/Address"
+    ShippingLabel:
+      type: object
+      required: [id, carrier, trackingNumber, labelUrl, format, expiresAt, createdAt]
+      properties:
+        id: { type: string }
+        carrier: { type: string }
+        trackingNumber: { type: string }
+        labelUrl: { type: string, format: uri }
         format:
           type: string
-          enum:
-            - pdf
-            - png
-            - zpl
-        expiresAt:
+          enum: [pdf, png, zpl]
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+    TrackingEvent:
+      type: object
+      required: [id, carrier, trackingNumber, status, occurredAt]
+      properties:
+        id: { type: string }
+        carrier: { type: string }
+        trackingNumber: { type: string }
+        status:
           type: string
-          format: date-time
-        createdAt:
-          type: string
-          format: date-time
+          enum: [label_created, accepted, in_transit, out_for_delivery, delivered, exception]
+        occurredAt: { type: string, format: date-time }
+        location: { type: string }
+        description: { type: string }
+    ReturnEvent:
+      type: object
+      required: [id, returnId, type, state, message, createdAt]
+      properties:
+        id: { type: string }
+        returnId: { type: string }
+        type: { type: string }
+        state:
+          $ref: "#/components/schemas/ReturnState"
+        message: { type: string }
+        actor: { type: string }
+        data: { type: object }
+        createdAt: { type: string, format: date-time }
     OpenReturnRecord:
       type: object
-      required:
-        - id
-        - orderId
-        - customer
-        - status
-        - requestedResolution
-        - reasonCodes
-        - items
-        - returnMethod
-        - tracking
-        - events
-        - createdAt
-        - updatedAt
+      required: [id, orderId, customer, status, requestedResolution, reasonCodes, items, returnMethod, tracking, events, createdAt, updatedAt]
       properties:
-        id:
-          type: string
-        orderId:
-          type: string
+        id: { type: string }
+        orderId: { type: string }
+        externalOrderId: { type: string }
         customer:
           $ref: "#/components/schemas/Customer"
         status:
@@ -282,23 +549,80 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ReturnItem"
-        returnMethod:
-          type: string
+        returnMethod: { type: string }
+        exchange: { type: object }
+        carrier: { type: object }
         label:
           $ref: "#/components/schemas/ShippingLabel"
+        tracking:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrackingEvent"
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReturnEvent"
+        metadata: { type: object }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time }
+    AddTrackingRequest:
+      type: object
+      required: [status]
+      properties:
+        trackingNumber: { type: string }
+        status:
+          type: string
+          enum: [label_created, accepted, in_transit, out_for_delivery, delivered, exception]
+        occurredAt: { type: string, format: date-time }
+        location: { type: string }
+        description: { type: string }
+    WebhookEvent:
+      type: object
+      required: [source, type, data]
+      properties:
+        id: { type: string }
+        source: { type: string }
+        type: { type: string }
+        returnId: { type: string }
+        trackingNumber: { type: string }
+        data: { type: object }
+        occurredAt: { type: string, format: date-time }
+    TokenDelegationRequest:
+      type: object
+      required: [subjectToken, actor, scope]
+      properties:
+        subjectToken: { type: string }
+        actor: { type: string }
+        scope: { type: string }
+        audience: { type: string }
+    OAuthTokenResponse:
+      type: object
+      required: [access_token, token_type, expires_in, scope]
+      properties:
+        access_token: { type: string }
+        token_type: { type: string, enum: [Bearer] }
+        expires_in: { type: integer }
+        scope: { type: string }
+        delegated_subject: { type: string }
+    OpenReturnDiscoveryDocument:
+      type: object
+      required: [protocol, protocolVersion, apiBaseUrl, oauth, capabilities]
+      properties:
+        protocol: { type: string, enum: [openreturn] }
+        protocolVersion: { type: string }
+        apiBaseUrl: { type: string, format: uri }
+        mcp: { type: object }
+        oauth: { type: object }
+        capabilities: { type: object }
     Error:
       type: object
-      required:
-        - error
+      required: [error]
       properties:
         error:
           type: object
-          required:
-            - code
-            - message
+          required: [code, message]
           properties:
-            code:
-              type: string
-            message:
-              type: string
+            code: { type: string }
+            message: { type: string }
             details: {}

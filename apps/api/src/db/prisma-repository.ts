@@ -1,13 +1,13 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, type Prisma } from "@prisma/client";
 import type { OpenReturnRecord, ReturnEvent } from "@openreturn/types";
-import type { ReturnListFilter, ReturnRepository } from "@openreturn/core";
+import { notFound, type ReturnListFilter, type ReturnRepository } from "@openreturn/core";
 
-function toJson<T>(value: T): any {
-  return JSON.parse(JSON.stringify(value));
+function toJson(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
-function fromJson(value: unknown): OpenReturnRecord {
-  return value as OpenReturnRecord;
+function fromJson(value: Prisma.JsonValue): OpenReturnRecord {
+  return value as unknown as OpenReturnRecord;
 }
 
 export class PrismaReturnRepository implements ReturnRepository {
@@ -36,7 +36,7 @@ export class PrismaReturnRepository implements ReturnRepository {
             createdAt: new Date(event.createdAt)
           }))
         }
-      } as any
+      }
     });
     return record;
   }
@@ -47,15 +47,21 @@ export class PrismaReturnRepository implements ReturnRepository {
   }
 
   public async findByTrackingNumber(trackingNumber: string): Promise<OpenReturnRecord | null> {
-    const record = await this.prisma.returnRecord.findFirst({
-      where: {
-        OR: [
-          { labelTrackingNumber: trackingNumber },
-          { data: { path: ["tracking"], array_contains: [{ trackingNumber }] } as any }
-        ]
-      }
+    const labelRecord = await this.prisma.returnRecord.findFirst({
+      where: { labelTrackingNumber: trackingNumber }
     });
-    return record ? fromJson(record.data) : null;
+    if (labelRecord) {
+      return fromJson(labelRecord.data);
+    }
+
+    const records = await this.prisma.returnRecord.findMany();
+    for (const record of records) {
+      const parsed = fromJson(record.data);
+      if (parsed.tracking.some((event) => event.trackingNumber === trackingNumber)) {
+        return parsed;
+      }
+    }
+    return null;
   }
 
   public async list(filter: ReturnListFilter = {}): Promise<OpenReturnRecord[]> {
@@ -87,7 +93,7 @@ export class PrismaReturnRepository implements ReturnRepository {
   public async appendEvent(returnId: string, event: ReturnEvent): Promise<OpenReturnRecord> {
     const record = await this.findById(returnId);
     if (!record) {
-      throw new Error(`Return not found: ${returnId}`);
+      throw notFound(`Return not found: ${returnId}`);
     }
     record.events.push(event);
     record.updatedAt = event.createdAt;
@@ -105,7 +111,7 @@ export class PrismaReturnRepository implements ReturnRepository {
           actor: event.actor,
           data: event.data ? toJson(event.data) : undefined,
           createdAt: new Date(event.createdAt)
-        } as any,
+        },
         create: {
           id: event.id,
           returnId: record.id,
@@ -115,7 +121,7 @@ export class PrismaReturnRepository implements ReturnRepository {
           actor: event.actor,
           data: event.data ? toJson(event.data) : undefined,
           createdAt: new Date(event.createdAt)
-        } as any
+        }
       });
     }
   }

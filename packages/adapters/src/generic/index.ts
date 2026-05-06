@@ -1,4 +1,5 @@
 import type { ErpCode, Order, ReturnItem } from "@openreturn/types";
+import { AdapterError } from "../errors";
 
 export interface GenericCommerceAdapterConfig {
   apiKey: string;
@@ -16,21 +17,37 @@ export interface GenericCommerceAdapter {
 export abstract class MockGenericCommerceAdapter implements GenericCommerceAdapter {
   public abstract readonly code: ErpCode | string;
   public abstract readonly name: string;
+  private readonly authorizations = new Map<string, string>();
+  private readonly syncedStatuses = new Map<string, string>();
 
   protected constructor(private readonly config: GenericCommerceAdapterConfig) {}
 
   public async lookupOrder(orderId: string, email = "customer@example.com"): Promise<Order | null> {
-    void this.config;
+    if (!orderId || orderId.toUpperCase().startsWith("MISSING")) {
+      return null;
+    }
     return {
       id: orderId,
-      customer: { email },
+      externalOrderId: `${String(this.code).toUpperCase()}-${orderId}`,
+      customer: {
+        email: email.toLowerCase(),
+        name: "Headless Reference Customer",
+        shippingAddress: {
+          name: "Headless Reference Customer",
+          line1: "Singel 10",
+          city: "Amsterdam",
+          postalCode: "1015AB",
+          countryCode: "NL"
+        }
+      },
       items: [
         {
           id: "line_1",
-          sku: "GENERIC-SKU",
+          sku: `${String(this.code).toUpperCase()}-SKU-1`,
           name: "Generic catalog item",
           quantity: 1,
-          unitPrice: { amount: 4200, currency: "EUR" }
+          unitPrice: { amount: 4200, currency: "EUR" },
+          attributes: { sourceEndpoint: this.config.endpoint ?? "mock" }
         }
       ],
       total: { amount: 4200, currency: "EUR" },
@@ -39,12 +56,30 @@ export abstract class MockGenericCommerceAdapter implements GenericCommerceAdapt
     };
   }
 
-  public async createReturnAuthorization(orderId: string, _items: ReturnItem[]): Promise<string> {
-    return `${String(this.code).toUpperCase()}-RMA-${orderId}`;
+  public async createReturnAuthorization(orderId: string, items: ReturnItem[]): Promise<string> {
+    if (!orderId) {
+      throw new AdapterError("invalid_authorization_request", "orderId is required to create a return authorization");
+    }
+    if (items.length === 0) {
+      throw new AdapterError(
+        "invalid_authorization_request",
+        "At least one return item is required to create a return authorization"
+      );
+    }
+    const existing = this.authorizations.get(orderId);
+    if (existing) {
+      return existing;
+    }
+    const authorization = `${String(this.code).toUpperCase()}-RMA-${orderId}`;
+    this.authorizations.set(orderId, authorization);
+    return authorization;
   }
 
-  public async syncReturnStatus(_returnId: string, _status: string): Promise<void> {
-    return Promise.resolve();
+  public async syncReturnStatus(returnId: string, status: string): Promise<void> {
+    if (!returnId || !status) {
+      throw new AdapterError("invalid_return_sync", "returnId and status are required to sync a return");
+    }
+    this.syncedStatuses.set(returnId, status);
   }
 }
 

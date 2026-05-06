@@ -7,13 +7,23 @@ import {
   InMemoryReturnRepository,
   NoopNotificationDispatcher,
   OpenReturnError,
-  ReturnService
+  ReturnService,
+  validationError,
+  type ReturnListFilter
 } from "@openreturn/core";
 import {
   CARRIER_CODES,
+  ProtocolValidationError,
   RESOLUTION_TYPES,
   RETURN_REASON_CODES,
   RETURN_STATES,
+  assertAddTrackingRequest,
+  assertInitiateReturnRequest,
+  assertSelectCarrierRequest,
+  assertSelectExchangeRequest,
+  assertTokenDelegationRequest,
+  assertUpdateReturnRequest,
+  assertWebhookEvent,
   type OpenReturnDiscoveryDocument,
   type ReturnState
 } from "@openreturn/types";
@@ -29,7 +39,7 @@ import {
   ThirdPartyReturnMethod
 } from "@openreturn/return-methods";
 import type { ApiConfig } from "./config";
-import { loadConfig } from "./config";
+import { carrierApiKey, loadConfig } from "./config";
 import { OAuthTokenService, optionalAuth, requireAuth, type AuthenticatedRequest } from "./auth/tokens";
 import { PrismaReturnRepository } from "./db/prisma-repository";
 import { SmtpNotificationDispatcher } from "./notifications/smtp";
@@ -58,13 +68,20 @@ export function createApp(dependencies: AppDependencies = {}) {
       ? requireAuth(tokenService, scope)
       : (_request: Request, _response: Response, next: NextFunction) => next();
   const carrierAdapters = createMockCarrierAdapters({
-    apiKey: "mock",
+    apiKeys: {
+      postnl: carrierApiKey(config, "postnl"),
+      dhl: carrierApiKey(config, "dhl"),
+      ups: carrierApiKey(config, "ups"),
+      dpd: carrierApiKey(config, "dpd"),
+      budbee: carrierApiKey(config, "budbee")
+    },
     labelBaseUrl: `${config.apiBaseUrl}/labels`
   });
   const platformAdapters =
-    dependencies.platformAdapters ?? createMockPlatformAdapters({ apiKey: "mock" });
+    dependencies.platformAdapters ?? createMockPlatformAdapters({ apiKey: config.adapters.platformApiKey });
   const genericAdapters =
-    dependencies.genericAdapters ?? createMockGenericCommerceAdapters({ apiKey: "mock" });
+    dependencies.genericAdapters ??
+    createMockGenericCommerceAdapters({ apiKey: config.adapters.genericCommerceApiKey });
   const methodRegistry = createDefaultReturnMethodRegistry();
   methodRegistry.register(
     new ThirdPartyReturnMethod({
@@ -120,12 +137,18 @@ export function createApp(dependencies: AppDependencies = {}) {
         transport: config.mcpUrl ? "http" : "stdio",
         url: config.mcpUrl,
         tools: [
+          "discover_openreturn",
+          "lookup_order",
+          "list_returns",
           "initiate_return",
           "get_return_status",
+          "update_return",
           "select_exchange",
           "select_carrier",
           "get_label",
-          "track_return"
+          "track_return",
+          "get_return_events",
+          "receive_webhook"
         ]
       },
       oauth: {
@@ -167,17 +190,22 @@ export function createApp(dependencies: AppDependencies = {}) {
     "/oauth/delegate",
     requireAuth(tokenService, "agent:delegate"),
     (request: AuthenticatedRequest, response) => {
-      const subjectToken = String(request.body.subjectToken ?? request.body.subject_token ?? "");
-      const actor = String(request.body.actor ?? request.auth?.sub ?? "agent");
-      const scope = String(request.body.scope ?? "returns:read returns:write returns:track");
-      if (!subjectToken) {
-        response
-          .status(400)
-          .json({ error: { code: "validation_error", message: "subjectToken is required" } });
-        return;
-      }
-      const subject = tokenService.verify(subjectToken);
-      response.json(tokenService.issueDelegatedToken(subject, actor, scope));
+      const body = readBodyRecord(request.body);
+      const delegationRequest = {
+        subjectToken: body.subjectToken ?? body.subject_token,
+        actor: body.actor ?? request.auth?.sub ?? "agent",
+        scope: body.scope ?? "returns:read returns:write returns:track",
+        audience: body.audience
+      };
+      assertTokenDelegationRequest(delegationRequest);
+      const subject = tokenService.verify(delegationRequest.subjectToken);
+      response.json(
+        tokenService.issueDelegatedToken(
+          subject,
+          delegationRequest.actor,
+          delegationRequest.scope
+        )
+      );
     }
   );
 
@@ -204,12 +232,22 @@ export function createApp(dependencies: AppDependencies = {}) {
     authGuard("returns:read"),
     asyncHandler(async (request, response) => {
       const status = request.query.status?.toString();
-      const filter: { status?: ReturnState; email?: string } = {};
-      if (status && RETURN_STATES.includes(status as ReturnState)) {
+      const filter: ReturnListFilter = {};
+      if (status) {
+        if (!RETURN_STATES.includes(status as ReturnState)) {
+          throw validationError(`Unsupported return status filter: ${status}`);
+        }
         filter.status = status as ReturnState;
       }
       if (request.query.email) {
         filter.email = request.query.email.toString();
+      }
+      if (request.query.limit) {
+        const limit = Number(request.query.limit);
+        if (!Number.isInteger(limit) || limit < 1 || limit > 500) {
+          throw validationError("limit must be an integer between 1 and 500");
+        }
+        filter.limit = limit;
       }
       const returns = await service.listReturns(filter);
       response.json({ returns });
@@ -220,7 +258,9 @@ export function createApp(dependencies: AppDependencies = {}) {
     "/returns",
     authGuard("returns:write"),
     asyncHandler(async (request, response) => {
-      const record = await service.initiateReturn(request.body);
+      const body: unknown = request.body;
+      assertInitiateReturnRequest(body);
+      const record = await service.initiateReturn(body);
       response.status(201).json({ return: record });
     })
   );
@@ -238,7 +278,9 @@ export function createApp(dependencies: AppDependencies = {}) {
     "/returns/:id",
     authGuard("returns:write"),
     asyncHandler(async (request, response) => {
-      const record = await service.updateReturn(request.params.id, request.body);
+      const body: unknown = request.body;
+      assertUpdateReturnRequest(body);
+      const record = await service.updateReturn(request.params.id, body);
       response.json({ return: record });
     })
   );
@@ -247,7 +289,9 @@ export function createApp(dependencies: AppDependencies = {}) {
     "/returns/:id/exchange",
     authGuard("returns:write"),
     asyncHandler(async (request, response) => {
-      const record = await service.selectExchange(request.params.id, request.body);
+      const body: unknown = request.body;
+      assertSelectExchangeRequest(body);
+      const record = await service.selectExchange(request.params.id, body);
       response.json({ return: record });
     })
   );
@@ -256,7 +300,9 @@ export function createApp(dependencies: AppDependencies = {}) {
     "/returns/:id/carrier",
     authGuard("returns:write"),
     asyncHandler(async (request, response) => {
-      const record = await service.selectCarrier(request.params.id, request.body);
+      const body: unknown = request.body;
+      assertSelectCarrierRequest(body);
+      const record = await service.selectCarrier(request.params.id, body);
       response.json({ return: record });
     })
   );
@@ -274,7 +320,9 @@ export function createApp(dependencies: AppDependencies = {}) {
     "/returns/:id/track",
     authGuard("returns:track"),
     asyncHandler(async (request, response) => {
-      const record = await service.addTracking(request.params.id, request.body);
+      const body: unknown = request.body;
+      assertAddTrackingRequest(body);
+      const record = await service.addTracking(request.params.id, body);
       response.json({ return: record });
     })
   );
@@ -292,7 +340,9 @@ export function createApp(dependencies: AppDependencies = {}) {
     "/webhooks",
     authGuard("returns:track"),
     asyncHandler(async (request, response) => {
-      const record = await service.receiveWebhook(request.body);
+      const body: unknown = request.body;
+      assertWebhookEvent(body);
+      const record = await service.receiveWebhook(body);
       response.status(202).json({ accepted: true, return: record });
     })
   );
@@ -316,9 +366,25 @@ export function createApp(dependencies: AppDependencies = {}) {
       });
       return;
     }
+    if (error instanceof ProtocolValidationError) {
+      response.status(400).json({
+        error: {
+          code: error.code,
+          message: error.message,
+          details: error.issues
+        }
+      });
+      return;
+    }
     const message = error instanceof Error ? error.message : "Internal server error";
     response.status(500).json({ error: { code: "internal_error", message } });
   });
 
   return app;
+}
+
+function readBodyRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }

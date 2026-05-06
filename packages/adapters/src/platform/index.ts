@@ -7,6 +7,7 @@ import type {
   RefundResult,
   ReturnItem
 } from "@openreturn/types";
+import { AdapterError } from "../errors";
 
 export interface PlatformAdapterConfig {
   apiKey: string;
@@ -27,15 +28,23 @@ const defaultMoney: Money = { amount: 8999, currency: "EUR" };
 export abstract class MockPlatformAdapter implements PlatformAdapter {
   public abstract readonly code: PlatformCode | string;
   public abstract readonly name: string;
+  private readonly returnAuthorizations = new Map<string, string>();
+  private readonly refunds = new Map<string, RefundResult>();
+  private readonly exchanges = new Map<string, ExchangeSelection>();
 
   protected constructor(protected readonly config: PlatformAdapterConfig) {}
 
   public async lookupOrder(orderId: string, email = "customer@example.com"): Promise<Order | null> {
+    if (!orderId || orderId.toUpperCase().startsWith("MISSING")) {
+      return null;
+    }
+    const normalizedEmail = email.toLowerCase();
+    const itemSeed = orderId.replace(/[^a-z0-9]/gi, "").slice(-4) || "1001";
     return {
       id: orderId,
       externalOrderId: `${String(this.code).toUpperCase()}-${orderId}`,
       customer: {
-        email,
+        email: normalizedEmail,
         name: "Reference Customer",
         shippingAddress: {
           name: "Reference Customer",
@@ -48,19 +57,21 @@ export abstract class MockPlatformAdapter implements PlatformAdapter {
       items: [
         {
           id: "line_1",
-          sku: "TSHIRT-BLACK-M",
+          sku: `TSHIRT-BLACK-M-${itemSeed}`,
           name: "Black T-shirt",
           quantity: 1,
           unitPrice: { amount: 2999, currency: "EUR" },
-          attributes: { size: "M", color: "Black" }
+          imageUrl: this.imageUrl("tshirt-black"),
+          attributes: { size: "M", color: "Black", fulfillmentStatus: "fulfilled" }
         },
         {
           id: "line_2",
-          sku: "JEANS-STRAIGHT-32",
+          sku: `JEANS-STRAIGHT-32-${itemSeed}`,
           name: "Straight Jeans",
           quantity: 1,
           unitPrice: { amount: 6000, currency: "EUR" },
-          attributes: { size: "32", color: "Indigo" }
+          imageUrl: this.imageUrl("jeans-indigo"),
+          attributes: { size: "32", color: "Indigo", fulfillmentStatus: "fulfilled" }
         }
       ],
       total: defaultMoney,
@@ -69,19 +80,45 @@ export abstract class MockPlatformAdapter implements PlatformAdapter {
     };
   }
 
-  public async createReturnAuthorization(orderId: string, _items: ReturnItem[]): Promise<string> {
-    return `${String(this.code).toUpperCase()}-RMA-${orderId}-${randomUUID().slice(0, 8)}`;
+  public async createReturnAuthorization(orderId: string, items: ReturnItem[]): Promise<string> {
+    if (!orderId) {
+      throw new AdapterError("invalid_authorization_request", "orderId is required to create a return authorization");
+    }
+    if (items.length === 0) {
+      throw new AdapterError(
+        "invalid_authorization_request",
+        "At least one return item is required to create a return authorization"
+      );
+    }
+    const existing = this.returnAuthorizations.get(orderId);
+    if (existing) {
+      return existing;
+    }
+    const authorization = `${String(this.code).toUpperCase()}-RMA-${orderId}-${randomUUID().slice(0, 8)}`;
+    this.returnAuthorizations.set(orderId, authorization);
+    return authorization;
   }
 
-  public async markRefunded(_orderId: string, _refund: RefundResult): Promise<void> {
-    return Promise.resolve();
+  public async markRefunded(orderId: string, refund: RefundResult): Promise<void> {
+    if (!orderId) {
+      throw new AdapterError("invalid_refund_sync", "orderId is required to mark a refund");
+    }
+    this.refunds.set(orderId, refund);
   }
 
   public async markExchangeRequested(
-    _orderId: string,
-    _exchange: ExchangeSelection
+    orderId: string,
+    exchange: ExchangeSelection
   ): Promise<void> {
-    return Promise.resolve();
+    if (!orderId) {
+      throw new AdapterError("invalid_exchange_sync", "orderId is required to mark an exchange");
+    }
+    this.exchanges.set(orderId, exchange);
+  }
+
+  protected imageUrl(slug: string): string {
+    const baseUrl = this.config.storeUrl ?? "https://cdn.openreturn.local/reference-store";
+    return `${baseUrl.replace(/\/$/, "")}/${slug}.jpg`;
   }
 }
 

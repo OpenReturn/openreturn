@@ -47,7 +47,68 @@ Stripe (with a generic payment adapter interface for adding Mollie, Adyen and ot
 
 ## Project status
 
-OpenReturn is in the design and early development phase. The protocol specification is being drafted and development of the reference implementation will follow. We welcome early feedback on the protocol design through [GitHub Discussions](https://github.com/OpenReturn/openreturn/discussions).
+OpenReturn now includes a working reference implementation for local development:
+
+- `@openreturn/types`: shared protocol constants, TypeScript types, and runtime request validators.
+- `@openreturn/core`: return lifecycle state machine, repository contract, service orchestration, and notifications.
+- `@openreturn/adapters`: realistic mock carrier, commerce, ERP, and Stripe payment adapters.
+- `@openreturn/api`: Express REST API with OAuth delegation, discovery, Swagger UI, Prisma persistence, and webhook handling.
+- `@openreturn/mcp-server`: MCP stdio/HTTP wrapper around the REST API.
+- `@openreturn/portal`: Next.js consumer return flow and retailer dashboard.
+
+The bundled adapters are intentionally mock-based. They are suitable for development and demos, and define the contracts that live integrations should implement with retailer-owned credentials.
+
+## Running locally
+
+Prerequisites:
+
+- Node.js 20.11 or newer.
+- pnpm 9 or newer, via Corepack or a local pnpm install.
+- Docker, if you want PostgreSQL and Mailpit through Compose.
+
+Setup:
+
+```bash
+cp .env.example .env
+pnpm install --no-frozen-lockfile
+pnpm prisma:generate
+```
+
+Run everything with Docker:
+
+```bash
+docker compose up --build
+```
+
+Run in local development mode:
+
+```bash
+docker compose up postgres mailpit
+pnpm prisma:migrate
+pnpm dev
+```
+
+Default endpoints:
+
+- Portal: `http://localhost:3000`
+- REST API: `http://localhost:4000`
+- Swagger UI: `http://localhost:4000/docs`
+- OpenAPI JSON: `http://localhost:4000/openapi.json`
+- Discovery document: `http://localhost:4000/.well-known/openreturn`
+- MCP HTTP endpoint: `http://localhost:4100/mcp`
+- Mailpit inbox: `http://localhost:8025`
+
+Useful commands:
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm test:e2e
+pnpm build
+```
+
+For production-like auth checks, set `OPENRETURN_REQUIRE_AUTH=true` and replace `OAUTH_TOKEN_SECRET` with a high-entropy value of at least 32 characters.
 
 ## Architecture
 

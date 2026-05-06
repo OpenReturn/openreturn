@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, Download, PackageCheck, Search, Truck } from "lucide-react";
+import { Check, Download, MapPin, PackageCheck, Search, Truck } from "lucide-react";
 import type {
   CarrierCode,
   ExchangeItem,
@@ -34,6 +34,22 @@ const resolutionLabels: Record<ResolutionType, string> = {
   coupon_code: "Coupon code"
 };
 
+const carrierServiceLevels: Record<CarrierCode, string[]> = {
+  postnl: ["standard", "evening", "pickup-point"],
+  dhl: ["standard", "parcelshop", "express"],
+  ups: ["standard", "express-saver", "access-point"],
+  dpd: ["standard", "pickup", "predict"],
+  budbee: ["box", "home-pickup"]
+};
+
+const flowSteps: { id: Step; label: string }[] = [
+  { id: "lookup", label: "Order" },
+  { id: "reason", label: "Reason" },
+  { id: "exchange", label: "Exchange" },
+  { id: "carrier", label: "Carrier" },
+  { id: "label", label: "Label" }
+];
+
 export function ReturnFlow() {
   const [step, setStep] = useState<Step>("lookup");
   const [orderId, setOrderId] = useState("ORDER-1001");
@@ -46,6 +62,8 @@ export function ReturnFlow() {
   const [returnRecord, setReturnRecord] = useState<OpenReturnRecord | null>(null);
   const [replacementSku, setReplacementSku] = useState("");
   const [carrier, setCarrier] = useState<CarrierCode>("postnl");
+  const [serviceLevel, setServiceLevel] = useState(carrierServiceLevels.postnl[0]);
+  const [dropoffPointId, setDropoffPointId] = useState("AMS-DAMRAK-01");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -53,6 +71,14 @@ export function ReturnFlow() {
   const selectedItems = useMemo(
     () => order?.items.filter((item) => selectedItemIds.includes(item.id)) ?? [],
     [order, selectedItemIds]
+  );
+  const visibleSteps = useMemo(
+    () => flowSteps.filter((candidate) => resolution === "exchange" || candidate.id !== "exchange"),
+    [resolution]
+  );
+  const activeStepIndex = Math.max(
+    0,
+    visibleSteps.findIndex((candidate) => candidate.id === step)
   );
 
   async function lookupOrder() {
@@ -134,7 +160,11 @@ export function ReturnFlow() {
     if (!returnRecord) {
       return;
     }
-    await mutateReturn(`/api/returns/${returnRecord.id}/carrier`, { carrier }, "label");
+    await mutateReturn(
+      `/api/returns/${returnRecord.id}/carrier`,
+      { carrier, serviceLevel, dropoffPointId },
+      "label"
+    );
   }
 
   async function mutateReturn(path: string, body: unknown, nextStep: Step) {
@@ -166,6 +196,18 @@ export function ReturnFlow() {
           <h1 id="flow-title">Return flow</h1>
           <p className="muted">Lookup an order, capture a structured reason, choose a resolution, and generate a label.</p>
         </div>
+
+        <ol className="stepper" aria-label="Return progress">
+          {visibleSteps.map((candidate, index) => (
+            <li
+              className={index === activeStepIndex ? "active" : index < activeStepIndex ? "complete" : ""}
+              key={candidate.id}
+            >
+              <span>{index + 1}</span>
+              {candidate.label}
+            </li>
+          ))}
+        </ol>
 
         <div aria-live="polite" className="sr-status">
           {status}
@@ -213,7 +255,7 @@ export function ReturnFlow() {
             <fieldset>
               <legend>Items</legend>
               <div className="item-list">
-                {order.items.map((item) => (
+                {order.items.map((item, index) => (
                   <label className="choice" key={item.id}>
                     <input
                       type="checkbox"
@@ -226,10 +268,13 @@ export function ReturnFlow() {
                         );
                       }}
                     />
+                    <span className={`item-swatch swatch-${index % 4}`} aria-hidden="true" />
                     <span>
                       <strong>{item.name}</strong>
                       <br />
-                      <span className="muted">{item.sku}</span>
+                      <span className="muted">
+                        {item.sku} - {formatMoney(item.unitPrice)}
+                      </span>
                     </span>
                   </label>
                 ))}
@@ -295,6 +340,9 @@ export function ReturnFlow() {
                 placeholder="Optional replacement SKU"
               />
             </div>
+            <p className="muted">
+              Exchange reservations are attached to the return before a carrier label is generated.
+            </p>
             <button type="submit" disabled={busy}>
               <Check size={18} aria-hidden="true" />
               Reserve exchange
@@ -313,13 +361,43 @@ export function ReturnFlow() {
           >
             <div className="field">
               <label htmlFor="carrier">Carrier</label>
-              <select id="carrier" value={carrier} onChange={(event) => setCarrier(event.target.value as CarrierCode)}>
+              <select
+                id="carrier"
+                value={carrier}
+                onChange={(event) => {
+                  const nextCarrier = event.target.value as CarrierCode;
+                  setCarrier(nextCarrier);
+                  setServiceLevel(carrierServiceLevels[nextCarrier][0]);
+                }}
+              >
                 {CARRIER_CODES.map((code) => (
                   <option key={code} value={code}>
                     {code.toUpperCase()}
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="field">
+              <label htmlFor="service-level">Service</label>
+              <select
+                id="service-level"
+                value={serviceLevel}
+                onChange={(event) => setServiceLevel(event.target.value)}
+              >
+                {carrierServiceLevels[carrier].map((option) => (
+                  <option key={option} value={option}>
+                    {formatLabel(option)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="dropoff-point">Drop-off point</label>
+              <input
+                id="dropoff-point"
+                value={dropoffPointId}
+                onChange={(event) => setDropoffPointId(event.target.value)}
+              />
             </div>
             <button type="submit" disabled={busy}>
               <Truck size={18} aria-hidden="true" />
@@ -344,12 +422,45 @@ export function ReturnFlow() {
                 Track return
               </a>
             </div>
+            <div className="label-meta">
+              <span>
+                <Truck size={16} aria-hidden="true" />
+                {returnRecord.label.trackingNumber}
+              </span>
+              <span>
+                <MapPin size={16} aria-hidden="true" />
+                {dropoffPointId}
+              </span>
+            </div>
           </div>
         ) : null}
       </section>
 
       <aside className="panel" aria-labelledby="summary-title">
         <h2 id="summary-title">Current return</h2>
+        {order ? (
+          <div className="summary-block">
+            <p>
+              <strong>Order:</strong> {order.externalOrderId ?? order.id}
+            </p>
+            <p>
+              <strong>Customer:</strong> {order.customer.email}
+            </p>
+            <p>
+              <strong>Total:</strong> {formatMoney(order.total)}
+            </p>
+            <div className="mini-list" aria-label="Selected items">
+              {selectedItems.map((item) => (
+                <span key={item.id}>
+                  {item.name}
+                  <small>{item.sku}</small>
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="muted">Order details appear after lookup.</p>
+        )}
         {returnRecord ? (
           <div className="grid">
             <p>
@@ -368,9 +479,23 @@ export function ReturnFlow() {
             ) : null}
           </div>
         ) : (
-          <p className="muted">The return summary appears after the request is created.</p>
+          <p className="muted">The return record appears after the request is created.</p>
         )}
       </aside>
     </div>
   );
+}
+
+function formatMoney(value: { amount: number; currency: string }): string {
+  return new Intl.NumberFormat("en", {
+    style: "currency",
+    currency: value.currency
+  }).format(value.amount / 100);
+}
+
+function formatLabel(value: string): string {
+  return value
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }

@@ -5,14 +5,18 @@ import type {
   OpenReturnRecord,
   ReturnEvent,
   ReturnEventType,
-  ReturnState,
   SelectCarrierRequest,
   SelectExchangeRequest,
   ShippingLabel,
   UpdateReturnRequest,
   WebhookEvent
 } from "@openreturn/types";
-import type { CarrierAdapter } from "@openreturn/adapters";
+import {
+  isResolutionType,
+  isReturnReasonCode,
+  isTrackingStatus
+} from "@openreturn/types";
+import { AdapterError, type CarrierAdapter } from "@openreturn/adapters";
 import type { ReturnMethodRegistry } from "@openreturn/return-methods";
 import {
   assertTransition,
@@ -49,7 +53,10 @@ export class ReturnService {
     const now = new Date().toISOString();
     const id = randomUUID();
     const returnMethod = request.returnMethod ?? this.defaultMethodForResolution(request.requestedResolution);
-    const method = this.returnMethods.require(returnMethod);
+    const method = this.returnMethods.get(returnMethod);
+    if (!method) {
+      throw validationError(`Unsupported return method: ${returnMethod}`);
+    }
     const reasonCodes = [...new Set(request.items.map((item) => item.reason.code))];
 
     const record: OpenReturnRecord = {
@@ -100,10 +107,21 @@ export class ReturnService {
 
   public async updateReturn(id: string, request: UpdateReturnRequest): Promise<OpenReturnRecord> {
     const record = await this.getReturn(id);
+    if (
+      !request.status &&
+      !request.inspection &&
+      !request.refund &&
+      !request.storeCredit &&
+      !request.couponCode &&
+      !request.metadata
+    ) {
+      throw validationError("At least one update field is required");
+    }
     let next = { ...record, updatedAt: new Date().toISOString() };
 
     if (request.status) {
       assertTransition(record.status, request.status);
+      this.validateResolutionForTerminalState(record, request);
       next.status = request.status;
       if (request.status === "completed") {
         next.completedAt = next.updatedAt;
@@ -151,6 +169,14 @@ export class ReturnService {
     if (request.requestedItems.length === 0) {
       throw validationError("At least one exchange item is required");
     }
+    for (const item of request.requestedItems) {
+      if (!item.originalOrderItemId || !item.replacementSku || !item.replacementName) {
+        throw validationError("Exchange items require original and replacement product identifiers", item);
+      }
+      if (item.quantity < 1) {
+        throw validationError("Exchange item quantity must be at least 1", item);
+      }
+    }
 
     const now = new Date().toISOString();
     const next: OpenReturnRecord = {
@@ -174,6 +200,9 @@ export class ReturnService {
 
   public async selectCarrier(id: string, request: SelectCarrierRequest): Promise<OpenReturnRecord> {
     const record = await this.getReturn(id);
+    if (!request.carrier) {
+      throw validationError("carrier is required");
+    }
     if (record.status !== "initiated") {
       assertTransition(record.status, "label_generated");
     }
@@ -185,16 +214,24 @@ export class ReturnService {
       throw validationError("Exchange returns require exchange selection before carrier selection");
     }
 
-    const label = await carrier.createLabel({
-      returnId: record.id,
-      orderId: record.orderId,
-      customer: record.customer,
-      items: record.items,
-      carrier: request.carrier,
-      serviceLevel: request.serviceLevel,
-      shipFrom: request.shipFrom,
-      shipTo: request.shipTo
-    });
+    let label: ShippingLabel;
+    try {
+      label = await carrier.createLabel({
+        returnId: record.id,
+        orderId: record.orderId,
+        customer: record.customer,
+        items: record.items,
+        carrier: request.carrier,
+        serviceLevel: request.serviceLevel,
+        shipFrom: request.shipFrom,
+        shipTo: request.shipTo
+      });
+    } catch (error) {
+      if (error instanceof AdapterError) {
+        throw validationError(`Carrier label generation failed: ${error.message}`, error.details);
+      }
+      throw error;
+    }
     const now = new Date().toISOString();
     const next: OpenReturnRecord = {
       ...record,
@@ -234,6 +271,9 @@ export class ReturnService {
 
   public async addTracking(id: string, request: AddTrackingRequest): Promise<OpenReturnRecord> {
     const record = await this.getReturn(id);
+    if (!isTrackingStatus(request.status)) {
+      throw validationError(`Unsupported tracking status: ${String(request.status)}`);
+    }
     const trackingNumber = request.trackingNumber ?? record.label?.trackingNumber;
     if (!trackingNumber) {
       throw validationError("trackingNumber is required before a label exists");
@@ -326,16 +366,40 @@ export class ReturnService {
     if (!request.orderId) {
       throw validationError("orderId is required");
     }
-    if (!request.customer.email) {
+    if (!request.customer?.email) {
       throw validationError("customer.email is required");
     }
-    if (request.items.length === 0) {
+    if (!isResolutionType(request.requestedResolution)) {
+      throw validationError(`Unsupported resolution type: ${String(request.requestedResolution)}`);
+    }
+    if (!Array.isArray(request.items) || request.items.length === 0) {
       throw validationError("At least one return item is required");
     }
     for (const item of request.items) {
-      if (item.quantity < 1) {
+      if (!item.orderItemId || !item.sku || !item.name) {
+        throw validationError("Return items require orderItemId, sku, and name", item);
+      }
+      if (!Number.isInteger(item.quantity) || item.quantity < 1) {
         throw validationError("Return item quantity must be at least 1", item);
       }
+      if (!isReturnReasonCode(item.reason?.code)) {
+        throw validationError(`Unsupported return reason code: ${String(item.reason?.code)}`, item);
+      }
+    }
+  }
+
+  private validateResolutionForTerminalState(
+    record: OpenReturnRecord,
+    request: UpdateReturnRequest
+  ): void {
+    if (request.status === "refunded" && record.requestedResolution !== "refund") {
+      throw validationError("Only refund returns can move to refunded");
+    }
+    if (request.status === "refunded" && !request.refund && !record.refund) {
+      throw validationError("Refunded returns require a refund result");
+    }
+    if (request.status === "exchanged" && record.requestedResolution !== "exchange") {
+      throw validationError("Only exchange returns can move to exchanged");
     }
   }
 
